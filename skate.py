@@ -5,6 +5,9 @@ from pygame.locals import *
 D_WIDTH, D_HEIGHT = 1280, 720
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 
+pygame.font.init()
+font = pygame.font.Font("inconsolata.ttf", 15)
+
 WHITE = 255, 255, 255
 BLACK = 0, 0, 0
 RED = 255, 0, 0
@@ -65,12 +68,17 @@ def draw_y_forces(y_forces__):
             color = RED
         else:
             color = WHITE
+
+        s = font.render(f'F{force.name} {force.magnitude} N', True, WHITE)
+
         if force.direction.sign == 1:
             height = 100
             pygame.draw.rect(display, color, (x, (D_HEIGHT - y) - height, 1, height))
+            display.blit(s, (x + 10, D_HEIGHT - y - height / 2))
         elif force.direction.sign == -1:
             height = 100
             pygame.draw.rect(display, color, (x, D_HEIGHT - y, 1, height))
+            display.blit(s, (x + 10, D_HEIGHT - y + height / 2))
 
 def main():
     global x_velocity, y_velocity
@@ -101,14 +109,22 @@ def main():
         if y <= ground:
             if y_velocity != 0:
                 y_velocity = 0
+                y = ground
 
             Fn = Force(Fw.magnitude, Direction(sign=Fw.direction.sign * -1, XY=Fw.direction.XY), name="normal")
             y_forces.append(Fn)
+            # Ffriction = coefficient of friction * normal force
+            Ff = Force(Fn.magnitude * 0.5, Direction(sign=-x_velocity / abs(x_velocity), XY=HORZ), name="friction")
+            x_forces.append(Ff)
 
+        s = font.render(f't={t}', True, WHITE)
+        display.blit(s, (10, 10))
         t += 1
-        if t == 300:
+        if 260 == t:
             x_forces.append(Force(x_velocity * mass, Direction(sign=-1, XY=HORZ), name="applied"))
-            y_forces.append(Force(5, Direction(sign=1, XY=VERT), name="applied"))
+        if 260 < t < 280:
+            x_forces.append(Force(0.35, Direction(sign=1, XY=HORZ), name="applied"))
+            y_forces.append(Force(0.35, Direction(sign=1, XY=VERT), name="applied"))
 
 
         y_accel = get_net_force(y_forces) / mass
@@ -126,10 +142,22 @@ def main():
 
         x_accel = get_net_force(x_forces) / mass
         x_velocity += x_accel
+
+        if x >= D_WIDTH or x < 0:
+            x_velocity = -x_velocity
+
+        display.blit(font.render(f'x_accel = {x_accel}', True, WHITE), (10, 150))
+        display.blit(font.render(f'x_velocity = {x_velocity}', True, WHITE), (10, 100))
+
+
         x += x_velocity
         x_forces = []
 
+        display.blit(font.render(f'y = {y}', True, WHITE), (10, 200))
+
         pygame.draw.rect(display, WHITE, (x, D_HEIGHT - y, 10, 10))
+
+        pygame.draw.rect(display, WHITE, (0, D_HEIGHT - ground, D_WIDTH, 1))
 
 
         pygame.display.update()
