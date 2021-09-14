@@ -131,8 +131,11 @@ def main():
             Fn = Force(Fw.magnitude, Direction(sign=Fw.direction.sign * -1, XY=Fw.direction.XY), name="normal")
             y_forces.append(Fn)
             # Ffriction = coefficient of friction * normal force
-            Ff = Force(Fn.magnitude * 0.5, Direction(sign=-x_velocity / abs(x_velocity), XY=HORZ), name="friction")
-            x_forces.append(Ff)
+            if abs(x_velocity) > 0.0001:
+                Ff = Force(Fn.magnitude * 0.5, Direction(sign=-x_velocity / abs(x_velocity), XY=HORZ), name="friction")
+                x_forces.append(Ff)
+            else:
+                x_velocity = 0
 
         s = font.render(f't={t}', True, WHITE)
         display.blit(s, (10, 10))
