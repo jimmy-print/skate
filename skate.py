@@ -62,7 +62,7 @@ def get_net_force(forces):
             yield x
     return sum(___())
 
-def draw_y_forces(y_forces__):
+def draw_forces(y_forces__, x_forces__):
     for force in y_forces__:
         if force.name == "applied":
             color = RED
@@ -73,12 +73,29 @@ def draw_y_forces(y_forces__):
 
         if force.direction.sign == 1:
             height = 100
-            pygame.draw.rect(display, color, (x, (D_HEIGHT - y) - height, 1, height))
+            pygame.draw.rect(display, color, (x, (D_HEIGHT - y) - height, 5, height))
             display.blit(s, (x + 10, D_HEIGHT - y - height / 2))
         elif force.direction.sign == -1:
             height = 100
-            pygame.draw.rect(display, color, (x, D_HEIGHT - y, 1, height))
+            pygame.draw.rect(display, color, (x, D_HEIGHT - y, 5, height))
             display.blit(s, (x + 10, D_HEIGHT - y + height / 2))
+
+    for force in x_forces__:
+        if force.name == "applied":
+            color = RED
+        else:
+            color = WHITE
+
+        s = font.render(f'F{force.name} {force.magnitude} N', True, WHITE)
+
+        if force.direction.sign == 1:
+            width = 100
+            pygame.draw.rect(display, color, (x + width / 10, (D_HEIGHT - y), width, 5))
+            display.blit(s, (x + width / 8, D_HEIGHT - y - width / 5))
+        elif force.direction.sign == -1:
+            width = 100
+            pygame.draw.rect(display, color, (x - width, (D_HEIGHT - y), width, 5))
+            display.blit(s, (x - s.get_rect().width - width / 8, D_HEIGHT - y - width / 5))
 
 def main():
     global x_velocity, y_velocity
@@ -131,10 +148,8 @@ def main():
         y_velocity += y_accel
         y += y_velocity
 
-        draw_y_forces(y_forces)  # place this function call after previous three lines,
-        # to prevent the placement of arrows and object being out of sync
 
-        y_forces = []
+
 
         if not applied:
             x_forces.append(Fa)
@@ -142,6 +157,11 @@ def main():
 
         x_accel = get_net_force(x_forces) / mass
         x_velocity += x_accel
+
+        pygame.draw.rect(display, WHITE, (0, D_HEIGHT - ground, D_WIDTH, 1))
+
+        draw_forces(y_forces, x_forces)  # place this function call after previous three lines,
+        # to prevent the placement of arrows and object being out of sync
 
         if x >= D_WIDTH or x < 0:
             x_velocity = -x_velocity
@@ -152,12 +172,12 @@ def main():
 
         x += x_velocity
         x_forces = []
+        y_forces = []
 
         display.blit(font.render(f'y = {y}', True, WHITE), (10, 200))
 
         pygame.draw.rect(display, WHITE, (x, D_HEIGHT - y, 10, 10))
 
-        pygame.draw.rect(display, WHITE, (0, D_HEIGHT - ground, D_WIDTH, 1))
 
 
         pygame.display.update()
