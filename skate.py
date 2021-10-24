@@ -1,5 +1,4 @@
 import pygame
-import time
 from pygame.locals import *
 
 D_WIDTH, D_HEIGHT = 1280, 720
@@ -146,13 +145,9 @@ def main():
             x_forces.append(Force(0.35, Direction(sign=1, XY=HORZ), name="applied"))
             y_forces.append(Force(0.35, Direction(sign=1, XY=VERT), name="applied"))
 
-
         y_accel = get_net_force(y_forces) / mass
         y_velocity += y_accel
         y += y_velocity
-
-
-
 
         if not applied:
             x_forces.append(Fa)
