@@ -94,6 +94,7 @@ def draw_forces(y_forces__, x_forces__):
         elif force.direction.sign == -1:
             width = 100
             pygame.draw.rect(display, color, (x - width, (D_HEIGHT - y), width, 5))
+            pygame.draw.rect(display, color, (x - width, (D_HEIGHT - y), width, 5))
             display.blit(s, (x - s.get_rect().width - width / 8, D_HEIGHT - y - width / 5))
 
 def main():
