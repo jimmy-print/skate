@@ -15,3 +15,13 @@ def all_unique(x):
 
 def extract_sign(x):
     return x / abs(x)
+
+def norm(radangle):
+    degangle = deg(radangle)
+    if degangle < 0:
+        while degangle < 0:
+            degangle += 360
+    elif degangle > 360:
+        while degangle > 360:
+            degangle -= 360
+    return rad(degangle)
