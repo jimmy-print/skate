@@ -1,5 +1,6 @@
+import random
 import pygame
-from math import sin, cos
+from math import sin, cos, sqrt, acos
 from utils import *
 
 WHITE = 255, 255, 255
@@ -11,16 +12,15 @@ YELLOW = 255, 255, 0
 ORANGE = 255, 165, 0
 PINK = 255, 0, 0
 
-g_accel = 0.05
+INFINITY = 10000000000000
 
-D_WIDTH, D_HEIGHT = 1600, 900
+g_accel = 0.3
+
+D_WIDTH, D_HEIGHT = 1280, 720
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 
 pygame.font.init()
 font = pygame.font.SysFont("Ubuntu", 15)
-
-fpsclock = pygame.time.Clock()
-fps_desired = 60
 
 
 class Vector:  # as in physics, not c++ type of vector
@@ -59,6 +59,11 @@ def get_x_y_components(vector):
     )
 
 
+def recombine(x_mag, y_mag, type_):
+    hypo = sqrt(x_mag ** 2 + y_mag ** 2)
+    return type_(hypo, direction=acos(x_mag / hypo))
+
+
 def get_net_vector(v0, v1):
     # using triangle rule for vector addition
     # todo explain method, with co-interior angles and cosine rule
@@ -74,6 +79,10 @@ def get_net_vector(v0, v1):
         v00 = v1
         v11 = v0
 
+    if v00.magnitude < 0 or v11.magnitude < 0:
+        class ShitException(Exception): pass
+        raise ShitException('negative magnitudes not accepted, fix yo shit')
+
     a = v00.magnitude
     b = v11.magnitude
     gamma = rad(360) - (norm(v11.direction) + (rad(180) - norm(v00.direction)))
@@ -86,7 +95,7 @@ def get_net_vector(v0, v1):
         return v00
 
     if c == 0:
-        net_force = vector_type(c, 0, 'a')
+        net_force = vector_type(c, 0)
     else:
         thing_to_acos = (c**2 + a**2 - b**2) / (2 * a * c) # TODO give better names for these variables
         if thing_to_acos > 1:
@@ -155,10 +164,41 @@ class point_mass:
         point_draw_height = 5
         display.fill(color, ((self.x, D_HEIGHT - self.y), (point_draw_width, point_draw_height)))
 
+        '''
         if len(self.will_apply_forces) > 0:
             for force in self.will_apply_forces:
                 draw_vector(force, self.x, self.y, color=WHITE)
             draw_vector(get_net_force(self.will_apply_forces), x=self.x, y=self.y, color=GREEN)
+        '''
+
+    @staticmethod
+    def collide(p0, p1):
+        p0_x_velocity, p0_y_velocity = get_x_y_components(p0.velocity)
+        p1_x_velocity, p1_y_velocity = get_x_y_components(p1.velocity)
+
+        # COLLIDE!
+        φ = 0  # collision angle
+        # since these are point masses, just use 0
+        p0_new_x_velocity = ((p0.velocity.speed * cos(p0.velocity.direction - φ) * (
+                p0.mass - p1.mass) + 2 * p1.mass * p1.velocity.speed * cos(p1.velocity.direction - φ)) / (
+                                     p0.mass + p1.mass)) * cos(φ) + p0.velocity.speed * sin(
+            p0.velocity.direction - φ) * cos(φ + math.pi / 2)
+        p0_new_y_velocity = ((p0.velocity.speed * cos(p0.velocity.direction - φ) * (
+                p0.mass - p1.mass) + 2 * p1.mass * p1.velocity.speed * cos(p1.velocity.direction - φ)) / (
+                                     p0.mass + p1.mass)) * sin(φ) + p0.velocity.speed * sin(
+            p0.velocity.direction - φ) * sin(φ + math.pi / 2)
+
+        p1_new_x_velocity = ((p1.velocity.speed * cos(p1.velocity.direction - φ) * (
+                p1.mass - p0.mass) + 2 * p0.mass * p0.velocity.speed * cos(p0.velocity.direction - φ)) / (
+                                     p1.mass + p0.mass)) * cos(φ) + p1.velocity.speed * sin(
+            p1.velocity.direction - φ) * cos(φ + math.pi / 2)
+        p1_new_y_velocity = ((p1.velocity.speed * cos(p1.velocity.direction - φ) * (
+                p1.mass - p0.mass) + 2 * p0.mass * p0.velocity.speed * cos(p0.velocity.direction - φ)) / (
+                                     p1.mass + p0.mass)) * sin(φ) + p1.velocity.speed * sin(
+            p1.velocity.direction - φ) * sin(φ + math.pi / 2)
+
+        p0.velocity = recombine(p0_new_x_velocity, p0_new_y_velocity, type_=Velocity)
+        p1.velocity = recombine(p1_new_x_velocity, p1_new_y_velocity, type_=Velocity)
 
 class axle__(point_mass):
     pass
@@ -229,12 +269,25 @@ class line:
         # now, from self.angular_speed and self.angle, derive tangential velocity vectors for every point besides the axle.
         for point in self.points:
             if point.orig_horz_d_from_axle > 0:
-                point.velocity = Velocity(point.orig_horz_d_from_axle * self.angular_speed, self.angle + rad(90))
+                if self.angular_speed > 0:
+                    point.velocity = Velocity(point.orig_horz_d_from_axle * self.angular_speed, self.angle + rad(90))
+                elif self.angular_speed < 0:
+                    point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * abs(self.angular_speed), self.angle + rad(270))
+                else:
+                    point.velocity = Velocity(0, 0)
             elif point.orig_horz_d_from_axle < 0:
-                point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * self.angular_speed, self.angle + rad(270))
-                # this is because negative magnitude values fuck up the net vector function.
+                if self.angular_speed > 0:
+                    point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * self.angular_speed, self.angle + rad(270))
+                elif self.angular_speed < 0:
+                    point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * abs(self.angular_speed),
+                                              self.angle + rad(90))
+                else:
+                    point.velocity = Velocity(0, 0)
+            point.rot_velocity = point.velocity
 
-            draw_vector(point.velocity, point.x, point.y, color=YELLOW, display_multiply_factor=20)
+            # all this shit is because negative magnitude values fuck up the net vector function.
+
+            draw_vector(point.velocity, point.x, point.y, color=GREEN, display_multiply_factor=20)
             draw_vector(self.axle.velocity, point.x, point.y, color=YELLOW, display_multiply_factor=20)
 
             v = get_net_vector(point.velocity, self.axle.velocity)
@@ -268,14 +321,19 @@ class line:
 
 
 def main():
-    axle = axle__(400, 200, 10)
+    init_axle_x = 300
+    init_axle_y = 200
+    axle = axle__(init_axle_x, init_axle_y, 10)
     l = line(axle, (
-        point_mass_on_line(axle, 200, 10),
-        point_mass_on_line(axle, -200, 10)
+        point_mass_on_line(axle, 250, 20),
+        point_mass_on_line(axle, -250, 20)
     ))
 
     t = 0
     fill = True
+
+    fpsclock = pygame.time.Clock()
+    fps_desired = 60
 
     def pause():
         while True:
@@ -286,6 +344,27 @@ def main():
                 if event.type == pygame.QUIT:
                     quit()
 
+    p0 = point_mass(0, 200, 1)
+    p0.velocity = Velocity(1.41, -rad(26.3))
+    p1 = point_mass(200, 100, 1)
+
+    frm_by_frm = False
+
+    def snow_crash(point, hiro_protagonist):
+        pxv, pyv = get_x_y_components(point.velocity)
+
+        if hiro_protagonist == 'x':
+            pxv = pxv
+            pyv = -pyv
+        elif hiro_protagonist == 'y':
+            pxv = -pxv
+            pyv = pyv
+
+        point.velocity = recombine(pxv, pyv, Velocity)
+        draw_vector(point.velocity, point.x, point.y, GREEN, display_multiply_factor=20)
+    done = False
+    l.axle.velocity = Velocity(10
+                               , rad(0))
     while True:
         t += 1
         pausing_this_frm = False
@@ -303,22 +382,43 @@ def main():
                     fill = not fill
                 if event.key == pygame.K_SPACE:
                     pausing_this_frm = True
+                if event.key == pygame.K_f:
+                    frm_by_frm = not frm_by_frm
 
+        pygame.draw.line(display, WHITE, (0, D_HEIGHT - 100), (D_WIDTH, D_HEIGHT - 100))
+        pygame.draw.polygon(display, WHITE, ((l.axle.x, D_HEIGHT - l.axle.y), (l.axle.x - 50, D_HEIGHT - (l.axle.y - 100)), (l.axle.x + 50, D_HEIGHT - (l.axle.y - 100))), width=2)
 
         l.angular_acceleration = 0
 
-        if 0 < t < 100:
-            l.apply_force(Force(3, l.angle + rad(45)), distance_from_axle_on_line=100)
-        if 0 < t < 60:
-            l.apply_force(Force(3, rad(90)), distance_from_axle_on_line=0)
-        if 0 < t < 60:
-            l.apply_force(Force(0.5, rad(0)), distance_from_axle_on_line=0)
-        l.apply_force(Force(g_accel * l.mass, rad(270)), distance_from_axle_on_line=0)
+        if 0 < t < 18:
+            l.apply_force(Force(100, rad(270)), distance_from_axle_on_line=-100)
+        if 20 < t < 30:
+            l.apply_force(Force(20, rad(deg(l.angle) - 90)), distance_from_axle_on_line=200)
+
+        if l.leftmostpoint.y < 100 and t < 60:
+            l.angular_speed = 0
+            #l.apply_force(get_net_vector(Force(l.leftmostpoint.rot_velocity.speed * l.mass, l.leftmostpoint.rot_velocity.direction + rad(180)),
+            #                            Force(l.axle.velocity.speed * l.mass, rad(0))), 0)
+            l.axle.velocity = get_net_vector(Velocity(l.leftmostpoint.rot_velocity.speed, l.leftmostpoint.rot_velocity.direction + rad(180)),
+                                             Velocity(l.axle.velocity.speed, l.axle.velocity.direction))
+
+        # forces can be stacked on the line if they're applied at the axle, not otherwise for torque
+        # kinda sure??
+        if 30 < t < 40:
+            l.apply_force(Force(20, l.angle + rad(270)), distance_from_axle_on_line=0)
+        if l.axle.y > 200:
+            l.apply_force(Force(g_accel * l.mass, rad(270)), 0)
+
 
         l.tick()
         l.draw()
 
         l.reset_handovers()
+
+        if abs(round(p0.x) - round(p1.x)) < 3 and abs(round(p0.y) - round(p1.y)) < 3:
+            point_mass.collide(p0, p1)
+        p0.tick(); p0.draw(WHITE)
+        p1.tick(); p1.draw(RED)
 
         pygame.display.update()
         fpsclock.tick(fps_desired)
@@ -327,6 +427,10 @@ def main():
             draw_text('Paused', 200, 80)
             pygame.display.update()
             pause()
+
+        if frm_by_frm:
+            if input() == 'f':
+                frm_by_frm = not frm_by_frm
 
 
 def draw_text(s, x, y):

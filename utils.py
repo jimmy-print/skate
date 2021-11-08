@@ -25,3 +25,6 @@ def norm(radangle):
         while degangle > 360:
             degangle -= 360
     return rad(degangle)
+
+def close(n, m, min_diff=3):
+    return abs(n - m) <= min_diff
