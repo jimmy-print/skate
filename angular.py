@@ -16,7 +16,7 @@ INFINITY = 10000000000000
 
 g_accel = 0.3
 
-D_WIDTH, D_HEIGHT = 1280, 720
+D_WIDTH, D_HEIGHT = 1920, 1080
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 
 pygame.font.init()
@@ -319,21 +319,49 @@ class line:
         self.handover_force = None
         self.handover_radial_distance = None
 
+    def move_axle(self):
+        self.axle.x = self.axle.x + cos(self.angle) * 200
+        self.axle.y = self.axle.y + sin(self.angle) * 200
+
+        self.leftmostpoint = point_mass_on_line(self.axle, -300, self.leftmostpoint.mass)
+        self.leftmostpoint.x = self.axle.x + math.cos(self.angle) * -300
+        self.leftmostpoint.y = self.axle.y + math.sin(self.angle) * -300
+        self.rightmostpoint = point_mass_on_line(self.axle, 300, self.rightmostpoint.mass)
+        self.rightmostpoint.x = self.axle.x + math.cos(self.angle) * 300
+        self.rightmostpoint.y = self.axle.y + math.sin(self.angle) * 300
+        self.points = self.leftmostpoint, self.rightmostpoint
+
+        self.rotational_inertia = sum(point.rotational_inertia for point in self.points)
+
+    def move_the_fucking_axle(self):
+        self.axle.x = self.axle.x + cos(self.angle) * 200
+        self.axle.y = self.axle.y + sin(self.angle) * 200
+
+        self.leftmostpoint = point_mass_on_line(self.axle, -500, self.leftmostpoint.mass)
+        self.leftmostpoint.x = self.axle.x + math.cos(self.angle) * -500
+        self.leftmostpoint.y = self.axle.y + math.sin(self.angle) * -500
+        self.rightmostpoint = point_mass_on_line(self.axle, 100, self.rightmostpoint.mass)
+        self.rightmostpoint.x = self.axle.x + math.cos(self.angle) * 100
+        self.rightmostpoint.y = self.axle.y + math.sin(self.angle) * 100
+        self.points = self.leftmostpoint, self.rightmostpoint
+
+        self.rotational_inertia = sum(point.rotational_inertia for point in self.points)
+        self.axle.velocity = Velocity(0, 0)
 
 def main():
-    init_axle_x = 300
-    init_axle_y = 200
+    init_axle_x = 150
+    init_axle_y = 150
     axle = axle__(init_axle_x, init_axle_y, 10)
     l = line(axle, (
-        point_mass_on_line(axle, 250, 20),
-        point_mass_on_line(axle, -250, 20)
+        point_mass_on_line(axle, 500, 20),
+        point_mass_on_line(axle, -100, 20)
     ))
 
-    t = 0
+    t = -60
     fill = True
 
     fpsclock = pygame.time.Clock()
-    fps_desired = 60
+    fps_desired = 25
 
     def pause():
         while True:
@@ -363,10 +391,14 @@ def main():
         point.velocity = recombine(pxv, pyv, Velocity)
         draw_vector(point.velocity, point.x, point.y, GREEN, display_multiply_factor=20)
     done = False
-    l.axle.velocity = Velocity(10
-                               , rad(0))
+    donedone = False
+
     while True:
         t += 1
+        if -30 < t < -20:
+            #l.axle.velocity = Velocity(10
+            #                           , rad(0))
+            l.apply_force(Force(50, 0), 0)
         pausing_this_frm = False
 
         if fill:
@@ -386,14 +418,13 @@ def main():
                     frm_by_frm = not frm_by_frm
 
         pygame.draw.line(display, WHITE, (0, D_HEIGHT - 100), (D_WIDTH, D_HEIGHT - 100))
-        pygame.draw.polygon(display, WHITE, ((l.axle.x, D_HEIGHT - l.axle.y), (l.axle.x - 50, D_HEIGHT - (l.axle.y - 100)), (l.axle.x + 50, D_HEIGHT - (l.axle.y - 100))), width=2)
 
         l.angular_acceleration = 0
 
-        if 0 < t < 18:
-            l.apply_force(Force(100, rad(270)), distance_from_axle_on_line=-100)
-        if 20 < t < 30:
-            l.apply_force(Force(20, rad(deg(l.angle) - 90)), distance_from_axle_on_line=200)
+        if 0 < t < 8:
+            l.apply_force(Force(1000, rad(270)), distance_from_axle_on_line=-100)
+        if 8 < t < 50:
+            l.apply_force(Force(5, rad(deg(l.angle) - 90)), distance_from_axle_on_line=200)
 
         if l.leftmostpoint.y < 100 and t < 60:
             l.angular_speed = 0
@@ -403,11 +434,21 @@ def main():
                                              Velocity(l.axle.velocity.speed, l.axle.velocity.direction))
 
         # forces can be stacked on the line if they're applied at the axle, not otherwise for torque
-        # kinda sure??
-        if 30 < t < 40:
-            l.apply_force(Force(20, l.angle + rad(270)), distance_from_axle_on_line=0)
-        if l.axle.y > 200:
+        # kinda sure?? PROB NOT
+
+        if l.axle.y > 150 and not done:
+            l.move_axle()
+            done = True
+        if l.axle.y > 150:
             l.apply_force(Force(g_accel * l.mass, rad(270)), 0)
+
+        if (l.rightmostpoint.y + math.sin(l.angle) * -100) - 50 < 100 and not donedone:
+            l.move_the_fucking_axle()
+            donedone = True
+        if (l.rightmostpoint.y + math.sin(l.angle) * -100) - 50 < 100:
+            l.apply_force(Force(l.leftmostpoint.mass * g_accel, rad(270)), l.leftmostpoint.orig_horz_d_from_axle)
+            l.apply_force(Force(l.rightmostpoint.mass * g_accel, rad(270)), l.rightmostpoint.orig_horz_d_from_axle)
+
 
 
         l.tick()
@@ -419,6 +460,19 @@ def main():
             point_mass.collide(p0, p1)
         p0.tick(); p0.draw(WHITE)
         p1.tick(); p1.draw(RED)
+
+        pygame.draw.polygon(display, WHITE, (
+            (l.leftmostpoint.x + math.cos(l.angle) * 100, D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 100)),
+            (l.leftmostpoint.x + math.cos(l.angle) * 100 - 25, D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 100 - 50)),
+            (l.leftmostpoint.x + math.cos(l.angle) * 100 + 25,
+             D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 100 - 50 ))), width=2)
+
+        pygame.draw.polygon(display, WHITE, (
+            (l.rightmostpoint.x + math.cos(l.angle) * -100, D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) * -100)),
+            (l.rightmostpoint.x + math.cos(l.angle) * -100 - 25,
+             D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) *-   100 - 50)),
+            (l.rightmostpoint.x + math.cos(l.angle) * -100 + 25,
+             D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) * -100 - 50))), width=2)
 
         pygame.display.update()
         fpsclock.tick(fps_desired)
