@@ -17,7 +17,7 @@ INFINITY = 10000000000000
 g_accel = 0.3
 
 D_WIDTH, D_HEIGHT = 1920, 1080
-display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
+display = pygame.display.set_mode((D_WIDTH, D_HEIGHT), pygame.FULLSCREEN)
 
 pygame.font.init()
 font = pygame.font.SysFont("Ubuntu", 15)
@@ -284,7 +284,7 @@ class line:
                 else:
                     point.velocity = Velocity(0, 0)
             point.rot_velocity = point.velocity
-
+            # ^^^
             # all this shit is because negative magnitude values fuck up the net vector function.
 
             draw_vector(point.velocity, point.x, point.y, color=GREEN, display_multiply_factor=20)
@@ -357,7 +357,7 @@ def main():
         point_mass_on_line(axle, -100, 20)
     ))
 
-    t = -60
+    t = 0
     fill = True
 
     fpsclock = pygame.time.Clock()
@@ -369,6 +369,8 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         return
+                    if event.key == pygame.K_ESCAPE:
+                        quit()
                 if event.type == pygame.QUIT:
                     quit()
 
@@ -395,10 +397,8 @@ def main():
 
     while True:
         t += 1
-        if -30 < t < -20:
-            #l.axle.velocity = Velocity(10
-            #                           , rad(0))
-            l.apply_force(Force(50, 0), 0)
+        if 40 < t < 60:
+            l.apply_force(Force(20, 0), 0)
         pausing_this_frm = False
 
         if fill:
@@ -416,17 +416,24 @@ def main():
                     pausing_this_frm = True
                 if event.key == pygame.K_f:
                     frm_by_frm = not frm_by_frm
+                if event.key == pygame.K_DOWN:
+                    fps_desired -= 1
+                if event.key == pygame.K_UP:
+                    fps_desired += 1
+
+                if event.key == pygame.K_ESCAPE:
+                    quit()
 
         pygame.draw.line(display, WHITE, (0, D_HEIGHT - 100), (D_WIDTH, D_HEIGHT - 100))
 
         l.angular_acceleration = 0
 
-        if 0 < t < 8:
+        if 60 < t < 68:
             l.apply_force(Force(1000, rad(270)), distance_from_axle_on_line=-100)
-        if 8 < t < 50:
+        if 68 < t < 110:
             l.apply_force(Force(5, rad(deg(l.angle) - 90)), distance_from_axle_on_line=200)
 
-        if l.leftmostpoint.y < 100 and t < 60:
+        if l.leftmostpoint.y < 100 and t < 120:
             l.angular_speed = 0
             #l.apply_force(get_net_vector(Force(l.leftmostpoint.rot_velocity.speed * l.mass, l.leftmostpoint.rot_velocity.direction + rad(180)),
             #                            Force(l.axle.velocity.speed * l.mass, rad(0))), 0)
@@ -448,7 +455,6 @@ def main():
         if (l.rightmostpoint.y + math.sin(l.angle) * -100) - 50 < 100:
             l.apply_force(Force(l.leftmostpoint.mass * g_accel, rad(270)), l.leftmostpoint.orig_horz_d_from_axle)
             l.apply_force(Force(l.rightmostpoint.mass * g_accel, rad(270)), l.rightmostpoint.orig_horz_d_from_axle)
-
 
 
         l.tick()
@@ -473,6 +479,8 @@ def main():
              D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) *-   100 - 50)),
             (l.rightmostpoint.x + math.cos(l.angle) * -100 + 25,
              D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) * -100 - 50))), width=2)
+
+        draw_text(f'fps={fps_desired}', 100, 140)
 
         pygame.display.update()
         fpsclock.tick(fps_desired)

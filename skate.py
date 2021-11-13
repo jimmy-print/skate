@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 
 D_WIDTH, D_HEIGHT = 1280, 720
-display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
+display = pygame.display.set_mode((D_WIDTH, D_HEIGHT), pygame.FULLSCREEN)
 
 pygame.font.init()
 font = pygame.font.Font("inconsolata.ttf", 15)
