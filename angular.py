@@ -16,8 +16,8 @@ INFINITY = 10000000000000
 
 g_accel = 0.3
 
-D_WIDTH, D_HEIGHT = 1920, 1080
-display = pygame.display.set_mode((D_WIDTH, D_HEIGHT), pygame.FULLSCREEN)
+D_WIDTH, D_HEIGHT = 1800, 800
+display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 
 pygame.font.init()
 font = pygame.font.SysFont("Ubuntu", 15)
@@ -205,11 +205,11 @@ class axle__(point_mass):
 
 class point_mass_on_line(point_mass):
     def __init__(self, axle, orig_horz_d_from_axle, mass):
-        self.orig_horz_d_from_axle = orig_horz_d_from_axle  # moment arm as well for now since force is only applied
+        self.horz = orig_horz_d_from_axle  # moment arm as well for now since force is only applied
         # tangentially
 
-        super().__init__(axle.x + self.orig_horz_d_from_axle, axle.y, mass)
-        self.rotational_inertia = self.mass * self.orig_horz_d_from_axle ** 2
+        super().__init__(axle.x + self.horz, axle.y, mass)
+        self.rotational_inertia = self.mass * self.horz ** 2
         # aka moment of inertia
 
 
@@ -268,18 +268,18 @@ class line:
 
         # now, from self.angular_speed and self.angle, derive tangential velocity vectors for every point besides the axle.
         for point in self.points:
-            if point.orig_horz_d_from_axle > 0:
+            if point.horz > 0:
                 if self.angular_speed > 0:
-                    point.velocity = Velocity(point.orig_horz_d_from_axle * self.angular_speed, self.angle + rad(90))
+                    point.velocity = Velocity(point.horz * self.angular_speed, self.angle + rad(90))
                 elif self.angular_speed < 0:
-                    point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * abs(self.angular_speed), self.angle + rad(270))
+                    point.velocity = Velocity(abs(point.horz) * abs(self.angular_speed), self.angle + rad(270))
                 else:
                     point.velocity = Velocity(0, 0)
-            elif point.orig_horz_d_from_axle < 0:
+            elif point.horz < 0:
                 if self.angular_speed > 0:
-                    point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * self.angular_speed, self.angle + rad(270))
+                    point.velocity = Velocity(abs(point.horz) * self.angular_speed, self.angle + rad(270))
                 elif self.angular_speed < 0:
-                    point.velocity = Velocity(abs(point.orig_horz_d_from_axle) * abs(self.angular_speed),
+                    point.velocity = Velocity(abs(point.horz) * abs(self.angular_speed),
                                               self.angle + rad(90))
                 else:
                     point.velocity = Velocity(0, 0)
@@ -319,16 +319,16 @@ class line:
         self.handover_force = None
         self.handover_radial_distance = None
 
-    def move_axle(self):
-        self.axle.x = self.axle.x + cos(self.angle) * 200
-        self.axle.y = self.axle.y + sin(self.angle) * 200
+    def move_axle(self, shift_axle_to_right_horz, left_point_new_horz, right_point_new_horz):
+        self.axle.x = self.axle.x + cos(self.angle) * shift_axle_to_right_horz
+        self.axle.y = self.axle.y + sin(self.angle) * shift_axle_to_right_horz
 
-        self.leftmostpoint = point_mass_on_line(self.axle, -300, self.leftmostpoint.mass)
-        self.leftmostpoint.x = self.axle.x + math.cos(self.angle) * -300
-        self.leftmostpoint.y = self.axle.y + math.sin(self.angle) * -300
-        self.rightmostpoint = point_mass_on_line(self.axle, 300, self.rightmostpoint.mass)
-        self.rightmostpoint.x = self.axle.x + math.cos(self.angle) * 300
-        self.rightmostpoint.y = self.axle.y + math.sin(self.angle) * 300
+        self.leftmostpoint = point_mass_on_line(self.axle, left_point_new_horz, self.leftmostpoint.mass)
+        self.leftmostpoint.x = self.axle.x + math.cos(self.angle) * left_point_new_horz
+        self.leftmostpoint.y = self.axle.y + math.sin(self.angle) * left_point_new_horz
+        self.rightmostpoint = point_mass_on_line(self.axle, right_point_new_horz, self.rightmostpoint.mass)
+        self.rightmostpoint.x = self.axle.x + math.cos(self.angle) * right_point_new_horz
+        self.rightmostpoint.y = self.axle.y + math.sin(self.angle) * right_point_new_horz
         self.points = self.leftmostpoint, self.rightmostpoint
 
         self.rotational_inertia = sum(point.rotational_inertia for point in self.points)
@@ -394,6 +394,7 @@ def main():
         draw_vector(point.velocity, point.x, point.y, GREEN, display_multiply_factor=20)
     done = False
     donedone = False
+    firsttime = False
 
     while True:
         t += 1
@@ -433,8 +434,9 @@ def main():
         if 68 < t < 110:
             l.apply_force(Force(5, rad(deg(l.angle) - 90)), distance_from_axle_on_line=200)
 
-        if l.leftmostpoint.y < 100 and t < 120:
-            l.angular_speed = 0
+        if l.leftmostpoint.y < 100 and not firsttime:
+            firsttime = True
+            #l.angular_speed = 0
             #l.apply_force(get_net_vector(Force(l.leftmostpoint.rot_velocity.speed * l.mass, l.leftmostpoint.rot_velocity.direction + rad(180)),
             #                            Force(l.axle.velocity.speed * l.mass, rad(0))), 0)
             l.axle.velocity = get_net_vector(Velocity(l.leftmostpoint.rot_velocity.speed, l.leftmostpoint.rot_velocity.direction + rad(180)),
@@ -453,8 +455,8 @@ def main():
             l.move_the_fucking_axle()
             donedone = True
         if (l.rightmostpoint.y + math.sin(l.angle) * -100) - 50 < 100:
-            l.apply_force(Force(l.leftmostpoint.mass * g_accel, rad(270)), l.leftmostpoint.orig_horz_d_from_axle)
-            l.apply_force(Force(l.rightmostpoint.mass * g_accel, rad(270)), l.rightmostpoint.orig_horz_d_from_axle)
+            l.apply_force(Force(l.leftmostpoint.mass * g_accel, rad(270)), l.leftmostpoint.horz)
+            l.apply_force(Force(l.rightmostpoint.mass * g_accel, rad(270)), l.rightmostpoint.horz)
 
 
         l.tick()
