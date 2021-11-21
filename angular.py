@@ -22,6 +22,8 @@ display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 pygame.font.init()
 font = pygame.font.SysFont("Ubuntu", 15)
 
+debug = True
+
 
 class Vector:  # as in physics, not c++ type of vector
     def __init__(self, magnitude, direction):
@@ -121,6 +123,8 @@ def get_net_force(fs):
 
 
 def draw_vector(vector, x, y, color, display_multiply_factor=100):
+    if not debug:
+        return
     draw_mag = vector.magnitude * display_multiply_factor
 
     pygame.draw.line(display, color,
@@ -349,6 +353,7 @@ class line:
         self.axle.velocity = Velocity(0, 0)
 
 def main():
+    global debug
     init_axle_x = 150
     init_axle_y = 150
     axle = axle__(init_axle_x, init_axle_y, 10)
@@ -361,7 +366,7 @@ def main():
     fill = True
 
     fpsclock = pygame.time.Clock()
-    fps_desired = 25
+    fps_desired = 45
 
     def pause():
         while True:
@@ -398,8 +403,7 @@ def main():
 
     while True:
         t += 1
-        if 40 < t < 60:
-            l.apply_force(Force(20, 0), 0)
+
         pausing_this_frm = False
 
         if fill:
@@ -421,66 +425,57 @@ def main():
                     fps_desired -= 1
                 if event.key == pygame.K_UP:
                     fps_desired += 1
+                if event.key == pygame.K_d:
+                    debug = not debug
 
                 if event.key == pygame.K_ESCAPE:
                     quit()
 
         pygame.draw.line(display, WHITE, (0, D_HEIGHT - 100), (D_WIDTH, D_HEIGHT - 100))
 
-        l.angular_acceleration = 0
+        if 0 < t < 20:
+            l.apply_force(Force(30, 0), 0)
+            pass
+        if 20 < t < 24:
+            l.apply_force(Force(2000, rad(270)), l.leftmostpoint.horz)
 
-        if 60 < t < 68:
-            l.apply_force(Force(1000, rad(270)), distance_from_axle_on_line=-100)
-        if 68 < t < 110:
-            l.apply_force(Force(5, rad(deg(l.angle) - 90)), distance_from_axle_on_line=200)
-
-        if l.leftmostpoint.y < 100 and not firsttime:
-            firsttime = True
-            #l.angular_speed = 0
-            #l.apply_force(get_net_vector(Force(l.leftmostpoint.rot_velocity.speed * l.mass, l.leftmostpoint.rot_velocity.direction + rad(180)),
-            #                            Force(l.axle.velocity.speed * l.mass, rad(0))), 0)
-            l.axle.velocity = get_net_vector(Velocity(l.leftmostpoint.rot_velocity.speed, l.leftmostpoint.rot_velocity.direction + rad(180)),
-                                             Velocity(l.axle.velocity.speed, l.axle.velocity.direction))
-
-        # forces can be stacked on the line if they're applied at the axle, not otherwise for torque
-        # kinda sure?? PROB NOT
-
-        if l.axle.y > 150 and not done:
-            l.move_axle()
+        if l.leftmostpoint.y < 100 and not done:
+            paradox = l.rightmostpoint.velocity
+            wittgensteinpopper = l.leftmostpoint.velocity
+            watchtower = l.axle.velocity
             done = True
-        if l.axle.y > 150:
+            l.move_axle(175, -275, 275)
+            l.angular_speed = 0
+            l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0)
+            # / 4 is cheat
+            l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0)
+            l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.rightmostpoint.horz)
+        if done:
             l.apply_force(Force(g_accel * l.mass, rad(270)), 0)
+        if 25 < t < 45:
+            l.apply_force(Force(60, l.angle + rad(270)), l.rightmostpoint.horz - 100)
+            pass
 
-        if (l.rightmostpoint.y + math.sin(l.angle) * -100) - 50 < 100 and not donedone:
-            l.move_the_fucking_axle()
-            donedone = True
-        if (l.rightmostpoint.y + math.sin(l.angle) * -100) - 50 < 100:
-            l.apply_force(Force(l.leftmostpoint.mass * g_accel, rad(270)), l.leftmostpoint.horz)
-            l.apply_force(Force(l.rightmostpoint.mass * g_accel, rad(270)), l.rightmostpoint.horz)
-
-
+        pastangle = l.angle
         l.tick()
         l.draw()
 
-        l.reset_handovers()
+        draw_text(f't={t}', 100, 100)
 
-        if abs(round(p0.x) - round(p1.x)) < 3 and abs(round(p0.y) - round(p1.y)) < 3:
-            point_mass.collide(p0, p1)
-        p0.tick(); p0.draw(WHITE)
-        p1.tick(); p1.draw(RED)
+        pygame.draw.line(display, WHITE, (0, D_HEIGHT - 100), (D_WIDTH, D_HEIGHT - 100))
 
-        pygame.draw.polygon(display, WHITE, (
-            (l.leftmostpoint.x + math.cos(l.angle) * 100, D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 100)),
-            (l.leftmostpoint.x + math.cos(l.angle) * 100 - 25, D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 100 - 50)),
-            (l.leftmostpoint.x + math.cos(l.angle) * 100 + 25,
-             D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 100 - 50 ))), width=2)
+        center_x = l.leftmostpoint.x + math.cos(l.angle - rad(15)) * 100
+        center_y = (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * 100)
+        pygame.draw.circle(display, WHITE, (
+            center_x,
+            D_HEIGHT - center_y
+        ), 24, width=1)
 
-        pygame.draw.polygon(display, WHITE, (
-            (l.rightmostpoint.x + math.cos(l.angle) * -100, D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) * -100)),
-            (l.rightmostpoint.x + math.cos(l.angle) * -100 - 25,
-             D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) *-   100 - 50)),
-            (l.rightmostpoint.x + math.cos(l.angle) * -100 + 25,
-             D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle) * -100 - 50))), width=2)
+        pygame.draw.circle(display, WHITE, (
+            center_x + math.cos(l.angle) * 350,
+            D_HEIGHT - (center_y + math.sin(l.angle) * 350)
+        ), 24, width=1)
+
 
         draw_text(f'fps={fps_desired}', 100, 140)
 

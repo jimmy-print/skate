@@ -82,8 +82,17 @@ while True:
          D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 150 - 50)),
         (l.leftmostpoint.x + math.cos(l.angle) * 100 + 25,
          D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle) * 150 - 50))), width=2)
-    
 
+    pygame.draw.circle(display, WHITE, (
+        l.leftmostpoint.x + math.cos(l.angle - rad(15)) * 100,
+        D_HEIGHT - (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * 100)
+    ), 24, width=1)
+
+    pygame.draw.circle(display, WHITE, (
+        l.rightmostpoint.x - math.cos(l.angle - rad(15)) * 100,
+        D_HEIGHT - (l.rightmostpoint.y + math.sin(l.angle + rad(15)) * -100)
+
+    ), 24, width=1)
     pygame.display.update()
     t += 1
 
