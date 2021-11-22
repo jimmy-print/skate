@@ -11,8 +11,8 @@ init_axle_y = 150
 axle = axle__(init_axle_x, init_axle_y, 10)
 wheels_horz_d = 100
 l = line(axle, (
-    point_mass_on_line(axle, 500, 20),
-    point_mass_on_line(axle, -200, 20)
+    point_mass_on_line(axle, 300, 20),
+    point_mass_on_line(axle, -100, 20)
 ))
 total_horz = abs(l.leftmostpoint.horz) + l.rightmostpoint.horz
 t = 0
@@ -28,8 +28,11 @@ while True:
             if event.key == pygame.K_f:
                 frm_by_frm = not frm_by_frm
 
-    l.apply_force(Force(10, rad(90)), 500)
-    l.apply_force(Force(10, rad(90)), -200)
+    if 0 < t < 2:
+        l.apply_force(Force(100, rad(90)), 300)
+        #l.apply_force(Force(100, 0), 0)
+    draw_text(f'l angular velocity: {l.angular_speed}rad/frm, {deg(l.angular_speed)} deg/frm', 100, 100)
+    print(l.angular_speed * l.rightmostpoint.horz)
     l.tick()
     l.draw()
 

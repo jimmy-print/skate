@@ -10,12 +10,13 @@ BLUE = 0, 0, 255
 YELLOW = 255, 255, 0
 ORANGE = 255, 165, 0
 PINK = 255, 0, 0
+GREY = 50, 50, 50
 
 INFINITY = 10000000000000
 
-g_accel = 0.3
+g_accel = 0.7
 
-D_WIDTH, D_HEIGHT = 1800, 800
+D_WIDTH, D_HEIGHT = 4000, 800
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 
 pygame.font.init()
@@ -42,7 +43,9 @@ class Velocity(Vector):
         return self.magnitude
 
     def __repr__(self):
-        return f'velocity {round(self.magnitude)}pxs/frm {round(deg(self.direction))}°'
+        #return f'velocity {round(self.magnitude)}pxs/frm {round(deg(self.direction))}°'
+        return f'velocity {(self.magnitude)}pxs/frm {(round(deg(self.direction)))}°'
+
 
 class Force(Vector):
     def __init__(self, newtons, direction, name='placeholder_force_name'):
@@ -217,9 +220,14 @@ class point_mass_on_line(point_mass):
 
 
 class line:
-    def __init__(self, axle, points):  # TODO clean up data entry
+    LEFT = 'LEFT'
+    CENT = 'CENT'
+    RIGH = 'RIGH'
+    def __init__(self, axle, points, wheels_horz_d, length):  # TODO clean up data entry
+        self.length = length
         self.axle = axle
         self.points = points
+        self.wheels_horz_d = wheels_horz_d
 
         assert all_same([point.y for point in self.points])
         assert all_unique([point.x for point in self.points])
@@ -243,9 +251,8 @@ class line:
 
         self.mass = sum(point.mass for point in self.points)
 
-    # TODO allow applying multiple forces at different radial distances in one frm.
-    # thus split apply_force to add_force and apply_force,
-    # like how point_mass does it.
+        self.axle_loc = line.LEFT
+
     def apply_force(self, force: Force, distance_from_axle_on_line: int):
         # if distance_from_axle_on_line is positive number that means towards the right, negative means left
 
@@ -290,13 +297,15 @@ class line:
             # ^^^
             # all this shit is because negative magnitude values fuck up the net vector function.
 
-            draw_vector(point.velocity, point.x, point.y, color=GREEN, display_multiply_factor=20)
-            draw_vector(self.axle.velocity, point.x, point.y, color=YELLOW, display_multiply_factor=20)
+            draw_vector(point.velocity, point.x, point.y, color=GREEN, display_multiply_factor=10) if point.velocity.magnitude != 0 else None
+            draw_vector(self.axle.velocity, point.x, point.y, color=YELLOW, display_multiply_factor=10) if self.axle.velocity.magnitude != 0 else None
 
             v = get_net_vector(point.velocity, self.axle.velocity)
-            draw_vector(v, point.x, point.y, RED, display_multiply_factor=20)
+            if self.axle.velocity.magnitude != 0:
+                draw_vector(v, point.x, point.y, RED, display_multiply_factor=10)
             point.velocity = v
             point.tick()
+        draw_vector(self.axle.velocity, self.axle.x, self.axle.y, color=YELLOW, display_multiply_factor=10) if self.axle.velocity.magnitude != 0 else None
 
     def draw(self):
         # draw entire line
@@ -322,28 +331,42 @@ class line:
         self.handover_force = None
         self.handover_radial_distance = None
 
-    def move_axle(self, shift_axle_to_right_horz, left_point_new_horz, right_point_new_horz):
-        self.axle.x = self.axle.x + cos(self.angle) * shift_axle_to_right_horz
-        self.axle.y = self.axle.y + sin(self.angle) * shift_axle_to_right_horz
+    def maintain_axle(self, axle_loc):
+        if axle_loc == self.axle_loc:
+            return
 
-        self.leftmostpoint = point_mass_on_line(self.axle, left_point_new_horz, self.leftmostpoint.mass)
-        self.leftmostpoint.x = self.axle.x + math.cos(self.angle) * left_point_new_horz
-        self.leftmostpoint.y = self.axle.y + math.sin(self.angle) * left_point_new_horz
-        self.rightmostpoint = point_mass_on_line(self.axle, right_point_new_horz, self.rightmostpoint.mass)
-        self.rightmostpoint.x = self.axle.x + math.cos(self.angle) * right_point_new_horz
-        self.rightmostpoint.y = self.axle.y + math.sin(self.angle) * right_point_new_horz
+        self.axle_loc = axle_loc
+
+        if axle_loc == line.CENT:
+            self.axle.x = self.leftmostpoint.x + cos(self.angle) * self.length / 2
+            self.axle.y = self.leftmostpoint.y + sin(self.angle) * self.length / 2
+
+            self.leftmostpoint = point_mass_on_line(self.axle, -1 * self.length / 2, self.leftmostpoint.mass)
+            self.rightmostpoint = point_mass_on_line(self.axle, self.length / 2, self.rightmostpoint.mass)
+        elif axle_loc == line.LEFT:
+            self.axle.x = self.leftmostpoint.x + cos(self.angle) * self.wheels_horz_d
+            self.axle.y = self.leftmostpoint.y + sin(self.angle) * self.wheels_horz_d
+
+            self.leftmostpoint = point_mass_on_line(self.axle, -1 * self.wheels_horz_d, self.leftmostpoint.mass)
+            self.rightmostpoint = point_mass_on_line(self.axle, (self.length - self.wheels_horz_d), self.rightmostpoint.mass)
+        elif axle_loc == line.RIGH:
+            self.axle.x = self.leftmostpoint.x + cos(self.angle) * (self.length - self.wheels_horz_d)
+            self.axle.y = self.leftmostpoint.y + sin(self.angle) * (self.length - self.wheels_horz_d)
+
+            self.leftmostpoint = point_mass_on_line(self.axle, -(self.length - self.wheels_horz_d), self.leftmostpoint.mass)
+            self.rightmostpoint = point_mass_on_line(self.axle, self.wheels_horz_d, self.rightmostpoint.mass)
+
+        self.leftmostpoint.x = self.axle.x + math.cos(self.angle) * self.leftmostpoint.horz
+        self.leftmostpoint.y = self.axle.y + math.sin(self.angle) * self.leftmostpoint.horz
+
+        self.rightmostpoint.x = self.axle.x + math.cos(self.angle) * self.rightmostpoint.horz
+        self.rightmostpoint.y = self.axle.y + math.sin(self.angle) * self.rightmostpoint.horz
+
         self.points = self.leftmostpoint, self.rightmostpoint
-
         self.rotational_inertia = sum(point.rotational_inertia for point in self.points)
 
-    def maintain_axle(self, leftmostpointhorz, rightmostpointhorz):
-        oldleftv = self.leftmostpoint.velocity
-        oldrightv = self.rightmostpoint.velocity
-        self.leftmostpoint = point_mass_on_line(self.axle, leftmostpointhorz, self.leftmostpoint.mass)
-        self.rightmostpoint = point_mass_on_line(self.axle, rightmostpointhorz, self.rightmostpoint.mass)
-        self.leftmostpoint.velocity = oldleftv
-        self.rightmostpoint.velocity = oldrightv
-        self.points = self.leftmostpoint, self.rightmostpoint
+    def sticky(self):
+        self.angular_speed *= 0.7
 
 
 def skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, radius_of_both_wheels, ground_y):
@@ -355,14 +378,20 @@ def skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center
 
 def main():
     global debug
-    init_axle_x = 150
+    init_axle_x = 100
     init_axle_y = 150
     axle = axle__(init_axle_x, init_axle_y, 10)
+    length = 600
     wheels_horz_d = 100
-    l = line(axle, (
-        point_mass_on_line(axle, 500, 20),
-        point_mass_on_line(axle, -wheels_horz_d, 20)
-    ))
+    l = line(
+        axle,
+        (
+            point_mass_on_line(axle, length - wheels_horz_d, 20),
+            point_mass_on_line(axle, -wheels_horz_d, 20)
+        ),
+        wheels_horz_d=wheels_horz_d,
+        length=length
+    )
     total_horz = abs(l.leftmostpoint.horz) + l.rightmostpoint.horz
 
     ground_y = 100
@@ -371,7 +400,7 @@ def main():
     fill = True
 
     fpsclock = pygame.time.Clock()
-    fps_desired = 25
+    fps_desired = 30
 
     def pause():
         while True:
@@ -387,9 +416,10 @@ def main():
     frm_by_frm = False
 
     done = False
-    donedone = False
     center_x = l.leftmostpoint.x + math.cos(l.angle - rad(15)) * wheels_horz_d
     center_y = (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * wheels_horz_d)
+
+    prevent_clip_done = False
     while True:
         t += 1
 
@@ -423,10 +453,18 @@ def main():
         pygame.draw.line(display, WHITE, (0, D_HEIGHT - ground_y), (D_WIDTH, D_HEIGHT - ground_y))
 
         if 0 < t < 20:
-            l.apply_force(Force(30, 0), 0)
+            l.apply_force(Force(40, 0), 0)
             pass
         if 20 < t < 24:
-            l.apply_force(Force(2000, rad(270)), l.leftmostpoint.horz)
+            l.apply_force(Force(3000, rad(270)), l.leftmostpoint.horz)
+        if 120 < t < 130:
+            l.apply_force(Force(60, 0), 0)
+        if 130 < t < 134:
+            done = False
+            l.maintain_axle(l.LEFT)
+            l.apply_force(Force(3000, rad(270)), l.leftmostpoint.horz)
+        if 140 < t < 165:
+            l.apply_force(Force(60, l.angle + rad(270)), l.rightmostpoint.horz)
 
         if l.leftmostpoint.y < ground_y and not done:
             paradox = l.rightmostpoint.velocity
@@ -436,35 +474,25 @@ def main():
 
             # move axle to centroid
 
-            l.move_axle(
-                shift_axle_to_right_horz=(l.leftmostpoint.horz + l.rightmostpoint.horz) / 2,
-                left_point_new_horz=-1 * (abs(l.leftmostpoint.horz) + ((l.leftmostpoint.horz + l.rightmostpoint.horz) / 2)),
-                right_point_new_horz=l.rightmostpoint.horz - ((l.leftmostpoint.horz + l.rightmostpoint.horz) / 2)
-            )
+            l.maintain_axle(line.CENT)
 
             l.angular_speed = 0
             l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0)
-            # / 4 is cheat
+            l.apply_force(Force(get_x_y_components(wittgensteinpopper)[0] * l.leftmostpoint.mass * 0.5, rad(90)), 0)
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0)
-            l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.rightmostpoint.horz)
-        '''if done:
-            l.apply_force(Force(g_accel * l.mass, rad(270)), 0)'''
-        if 25 < t < 45:
-            l.apply_force(Force(56, l.angle + rad(270)), l.rightmostpoint.horz - wheels_horz_d)
+            l.apply_force(Force(l.mass * paradox.magnitude / 3, paradox.direction), l.rightmostpoint.horz)
+
+        if 20 < t < 55:
+            l.apply_force(Force(60, l.angle + rad(270)), l.rightmostpoint.horz - wheels_horz_d)
             pass
 
-        '''
-        l.apply_force(Force(g_accel * l.axle.mass, rad(270)), 0)
-        l.apply_force(Force(g_accel * l.leftmostpoint.mass, rad(270)), l.leftmostpoint.horz)
-        l.apply_force(Force(g_accel * l.rightmostpoint.mass, rad(270)), l.rightmostpoint.horz)
-        '''
         l.apply_force(Force(g_accel * l.mass, rad(270)), 0)
 
         if skateboard_is_in_contact_with_ground(
                 left_wheel_center_y=center_y,
                 right_wheel_center_y=(center_y + math.sin(l.angle) * (total_horz - wheels_horz_d * 2)),
                 radius_of_both_wheels=24,
-                ground_y=ground_y) and l.angle != rad(0):
+                ground_y=ground_y) and not close(deg(l.angle), 0):
             # apply gravity to the leftmost and rightmost points
             l.apply_force(Force(g_accel * l.leftmostpoint.mass, rad(270)), l.leftmostpoint.horz)
             l.apply_force(Force(g_accel * l.rightmostpoint.mass, rad(270)), l.rightmostpoint.horz)
@@ -472,33 +500,43 @@ def main():
             left_wheel_bottom_y = center_y - 24
             right_wheel_bottom_y = (center_y + math.sin(l.angle) * (total_horz - wheels_horz_d * 2)) - 24
             if min(left_wheel_bottom_y, right_wheel_bottom_y) == left_wheel_bottom_y:
-                #l.maintain_axle(leftmostpointhorz=-100, rightmostpointhorz=500)
-                pass
-            elif min(left_wheel_bottom_y, right_wheel_bottom_y) == right_wheel_bottom_y and not donedone:
-                #l.maintain_axle(leftmostpointhorz=-500, rightmostpointhorz=100)
-                paradox = l.rightmostpoint.velocity
-                wittgensteinpopper = l.leftmostpoint.rot_velocity
-                watchtower = l.axle.velocity
+                l.maintain_axle(l.LEFT)
+            elif min(left_wheel_bottom_y, right_wheel_bottom_y) == right_wheel_bottom_y:
+                l.maintain_axle(l.RIGH)
 
-                l.move_axle(200, -500, 100)
-                l.angular_speed = 0
-                l.apply_force(Force(wittgensteinpopper.magnitude * l.leftmostpoint.mass, wittgensteinpopper.direction), l.leftmostpoint.horz)
-
-                donedone = True
+        if skateboard_is_in_contact_with_ground(
+                left_wheel_center_y=center_y,
+                right_wheel_center_y=(center_y + math.sin(l.angle) * (total_horz - wheels_horz_d * 2)),
+                radius_of_both_wheels=24,
+                ground_y=ground_y) and close(deg(l.angle), 0, min_diff=2):
+            l.sticky()
 
         if skateboard_is_in_contact_with_ground(
                 left_wheel_center_y=center_y,
                 right_wheel_center_y=(center_y + math.sin(l.angle) * (total_horz - wheels_horz_d * 2)),
                 radius_of_both_wheels=24,
                 ground_y=ground_y):
-            l.apply_force(Force(g_accel * l.mass, rad(90)), 0)
+            # first prevent clipping
+            if not prevent_clip_done:
+                left_wheel_bottom_y = center_y - 24
+                right_wheel_bottom_y = (center_y + math.sin(l.angle) * (total_horz - wheels_horz_d * 2)) - 24
 
+                d = ground_y - min(left_wheel_bottom_y, right_wheel_bottom_y)
+
+                for point in l.points:
+                    point.y += d - 1
+                l.axle.y += d - 1
+
+            #display.fill(GREY)
             # make l.axle.velocity only its horizontal part
             x_mag, y_mag = get_x_y_components(l.axle.velocity)
-            if extract_sign(x_mag) == 1:
-                l.axle.velocity = Velocity(x_mag, rad(0))
-            elif extract_sign(x_mag) == -1:
-                l.axle.velocity = Velocity(abs(x_mag), rad(180))
+            try:
+                if extract_sign(x_mag) == 1:
+                    l.axle.velocity = Velocity(x_mag, rad(0))
+                elif extract_sign(x_mag) == -1:
+                    l.axle.velocity = Velocity(abs(x_mag), rad(180))
+            except ZeroDivisionError:
+                l.axle.velocity = Velocity(0, 0)
 
         l.tick()
 
