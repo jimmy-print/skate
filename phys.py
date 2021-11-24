@@ -116,6 +116,7 @@ def draw_vector(vector, x, y, color, display_multiply_factor=100):
     global debug
     if not debug:
         return
+    
     draw_mag = vector.magnitude * display_multiply_factor
 
     pygame.draw.line(display, color,
@@ -370,6 +371,11 @@ class line:
         for point in self.points:
             point.y += dy
         self.axle.y += dy
+
+    def push_left_uniformwise(self, dx):
+        for point in self.points:
+            point.x += dx
+        self.axle.x += dx
 
 
 def skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, radius_of_both_wheels, ground_y):

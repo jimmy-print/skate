@@ -166,7 +166,7 @@ def main():
             l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0)
             #l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
 
-        if l.leftmostpoint.y < ground_y and l.axle_loc == l.CENT and not close(left_wheel_base_y[1], ground_y) and get_x_y_components(l.axle.velocity)[1] < 0:
+        if l.leftmostpoint.y < ground_y and l.axle_loc == l.CENT and get_x_y_components(l.axle.velocity)[1] < 0:
             x_component = get_x_y_components(l.axle.velocity)[0]
 
             if x_component > 0:
@@ -178,7 +178,7 @@ def main():
             l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(90)), l.leftmostpoint.horz)
             l.raise_uniformwise(ground_y - l.leftmostpoint.y)
             l.raise_uniformwise(5)
-        if l.rightmostpoint.y < ground_y and l.axle_loc == l.CENT and not close(right_wheel_base_y[1], ground_y) and get_x_y_components(l.axle.velocity)[1] < 0:
+        if l.rightmostpoint.y < ground_y and l.axle_loc == l.CENT  and get_x_y_components(l.axle.velocity)[1] < 0:
             x_component = get_x_y_components(l.axle.velocity)[0]
 
             if x_component > 0:
@@ -194,10 +194,51 @@ def main():
 
         if l.leftmostpoint.x < 0:
             y_component = get_x_y_components(l.axle.velocity)[1]
-            print(y_component)
 
-            #HFDKJLSHFIUNFYP(*UJ#YP(N*YWYM(NFOYUDSGHFMPINSDOYFPMKUD){M(P
+            if y_component > 0:
+                l.axle.velocity = Velocity(y_component, rad(90))
+            elif y_component < 0:
+                l.axle.velocity = Velocity(abs(y_component), rad(270))
+            elif y_component == 0:
+                l.axle.velocity = Velocity(0, 0)
+            l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(0)), l.leftmostpoint.horz, color=CYAN)
+            l.push_left_uniformwise(5)
+        if l.rightmostpoint.x < 0:
+            y_component = get_x_y_components(l.axle.velocity)[1]
 
+            if y_component > 0:
+                l.axle.velocity = Velocity(y_component, rad(90))
+            elif y_component < 0:
+                l.axle.velocity = Velocity(abs(y_component), rad(270))
+            elif y_component == 0:
+                l.axle.velocity = Velocity(0, 0)
+            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(0)), l.rightmostpoint.horz, color=CYAN)
+            l.push_left_uniformwise(5)
+        if l.leftmostpoint.x > D_WIDTH:
+            y_component = get_x_y_components(l.axle.velocity)[1]
+
+            if y_component > 0:
+                l.axle.velocity = Velocity(y_component, rad(90))
+            elif y_component < 0:
+                l.axle.velocity = Velocity(abs(y_component), rad(270))
+            elif y_component == 0:
+                l.axle.velocity = Velocity(0, 0)
+            l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(180)), l.leftmostpoint.horz, color=CYAN)
+            l.push_left_uniformwise(-5)
+        if l.rightmostpoint.x > D_WIDTH:
+            y_component = get_x_y_components(l.axle.velocity)[1]
+
+            if y_component > 0:
+                l.axle.velocity = Velocity(y_component, rad(90))
+            elif y_component < 0:
+                l.axle.velocity = Velocity(abs(y_component), rad(270))
+            elif y_component == 0:
+                l.axle.velocity = Velocity(0, 0)
+            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(180)), l.rightmostpoint.horz, color=CYAN)
+            l.push_left_uniformwise(-5)
+
+
+            
 
 
         l.tick()
