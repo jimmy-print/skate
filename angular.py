@@ -145,34 +145,27 @@ def main():
             wittgensteinpopper = l.leftmostpoint.velocity
             watchtower = l.axle.velocity
 
-            # move axle to centroid
-
             l.maintain_axle(line.CENT)
-            print('done')
             l.angular_speed = 0
             l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0)
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, color=CYAN)
             l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.rightmostpoint.horz)
             l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0)
-            l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
+            #l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
 
         if l.rightmostpoint.y < ground_y and l.axle_loc == l.RIGH and abs(l.angular_speed) > 0:
             paradox = l.leftmostpoint.velocity
             wittgensteinpopper = l.rightmostpoint.velocity
             watchtower = l.axle.velocity
 
-            # move axle to centroid
-
             l.maintain_axle(line.CENT)
-            print('done')
             l.angular_speed = 0
             l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0)
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, color=CYAN)
             l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.leftmostpoint.horz)
             l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0)
-            l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
+            #l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
 
-        print(close(left_wheel_base_y[1], ground_y))
         if l.leftmostpoint.y < ground_y and l.axle_loc == l.CENT and not close(left_wheel_base_y[1], ground_y) and get_x_y_components(l.axle.velocity)[1] < 0:
             x_component = get_x_y_components(l.axle.velocity)[0]
 
@@ -197,6 +190,13 @@ def main():
             l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(90)), l.rightmostpoint.horz, color=CYAN)
             l.raise_uniformwise(ground_y - l.rightmostpoint.y)
             l.raise_uniformwise(5)
+
+
+        if l.leftmostpoint.x < 0:
+            y_component = get_x_y_components(l.axle.velocity)[1]
+            print(y_component)
+
+            #HFDKJLSHFIUNFYP(*UJ#YP(N*YWYM(NFOYUDSGHFMPINSDOYFPMKUD){M(P
 
 
 
