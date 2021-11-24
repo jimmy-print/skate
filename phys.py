@@ -78,8 +78,9 @@ def get_net_vector(v0, v1):
     b = v11.magnitude
     gamma = rad(360) - (norm(v11.direction) + (rad(180) - norm(v00.direction)))
 
-    #print(a ** 2 + b ** 2 - 2 * a * b * math.cos(gamma))
-    c = math.sqrt(a ** 2 + b ** 2 - 2 * a * b * math.cos(gamma))
+    __ = a ** 2 + b ** 2 - 2 * a * b * math.cos(gamma)
+    __ = 0 if math.isclose(__, 0, abs_tol=0.00000001) else __
+    c = math.sqrt(__)
 
     if v00.magnitude == 0:
         return v11

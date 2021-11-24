@@ -2,6 +2,7 @@ import pygame
 from math import sin, cos, sqrt, acos
 from utils import *
 from phys import *
+from aesthetics import draw_man
 
 LEFTWHEEL = 'LEFTWHEEL'
 RIGHTWHEEL = 'RIGHTWHEEL'
@@ -52,11 +53,8 @@ def main():
 
     frm_by_frm = False
 
-    collision_done = False
     center_x = l.leftmostpoint.x + math.cos(l.angle - rad(15)) * wheels_horz_d
     center_y = (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * wheels_horz_d)
-
-    prevent_clip_done = False
 
     l.maintain_axle(l.CENT)
     while True:
@@ -108,8 +106,13 @@ def main():
 
         l.apply_force(Force(g_accel * l.mass, rad(270)), 0)
 
+        center_x = l.leftmostpoint.x + math.cos(l.angle - rad(15)) * wheels_horz_d
+        center_y = (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * wheels_horz_d)
+
         left_wheel_center_y = center_y
         right_wheel_center_y = (center_y + math.sin(l.angle) * (total_horz - wheels_horz_d * 2))
+        left_wheel_center_x = center_x
+        right_wheel_center_x = (center_x + math.cos(l.angle) * (total_horz - wheels_horz_d * 2))
 
         left_wheel_base_y = LEFTWHEEL, left_wheel_center_y - wheel_radius
         right_wheel_base_y = RIGHTWHEEL, right_wheel_center_y - wheel_radius
@@ -125,7 +128,7 @@ def main():
             elif x_component == 0:
                 l.axle.velocity = Velocity(0, 0)
 
-            if not close(deg(l.angle), 0, min_diff=1):
+            if not close(deg(l.angle), 0, min_diff=1.3):
                 l.apply_force(Force(g_accel * l.leftmostpoint.mass, rad(270)), l.leftmostpoint.horz)
                 l.apply_force(Force(g_accel * l.rightmostpoint.mass, rad(270)), l.rightmostpoint.horz)
             else:
@@ -139,7 +142,6 @@ def main():
             d = ground_y - min(left_wheel_base_y[1], right_wheel_base_y[1])
             l.raise_uniformwise(d - 1)
 
-        draw_text(f'{collision_done}', 700, 200)
         if l.leftmostpoint.y < ground_y and l.axle_loc == l.LEFT and abs(l.angular_speed) > 0:
             paradox = l.rightmostpoint.velocity
             wittgensteinpopper = l.leftmostpoint.velocity
@@ -151,7 +153,6 @@ def main():
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, color=CYAN)
             l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.rightmostpoint.horz)
             l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0)
-            #l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
 
         if l.rightmostpoint.y < ground_y and l.axle_loc == l.RIGH and abs(l.angular_speed) > 0:
             paradox = l.leftmostpoint.velocity
@@ -164,7 +165,6 @@ def main():
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, color=CYAN)
             l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.leftmostpoint.horz)
             l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0)
-            #l.axle.velocity = get_net_vector(l.axle.velocity, watchtower)
 
         if l.leftmostpoint.y < ground_y and l.axle_loc == l.CENT and get_x_y_components(l.axle.velocity)[1] < 0:
             x_component = get_x_y_components(l.axle.velocity)[0]
@@ -236,19 +236,13 @@ def main():
                 l.axle.velocity = Velocity(0, 0)
             l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(180)), l.rightmostpoint.horz, color=CYAN)
             l.push_left_uniformwise(-5)
-
-
-            
-
-
+        draw_man(left_wheel_top_x=left_wheel_center_x, left_wheel_top_y=left_wheel_center_y + wheel_radius,
+                 right_wheel_top_x=right_wheel_center_x, right_wheel_top_y=right_wheel_center_y + wheel_radius,
+                 l_angle=l.angle, wheel_horz=wheels_horz_d)
         l.tick()
 
         l.draw()
 
-        draw_text(f't={t}', 100, 100)
-
-        center_x = l.leftmostpoint.x + math.cos(l.angle - rad(15)) * wheels_horz_d
-        center_y = (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * wheels_horz_d)
         pygame.draw.circle(display, WHITE, (
             center_x,
             D_HEIGHT - center_y
@@ -261,6 +255,8 @@ def main():
         # rad(15 deg) is magic number
 
         draw_text(f'fps={fps_desired}', 100, 140)
+
+
 
         pygame.display.update()
         fpsclock.tick(fps_desired)
