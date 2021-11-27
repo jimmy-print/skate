@@ -84,20 +84,21 @@ def main():
                 if event.key == pygame.K_p:
                     debug = not debug
                 if event.key == pygame.K_c and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                    l.apply_force(Force(100, l.angle + rad(270)), l.rightmostpoint.horz)
+                    l.apply_force(Force(200, l.angle + rad(270)), l.rightmostpoint.horz)
                 if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                     l.maintain_axle(l.RIGH)
                     l.apply_force(Force(8000, rad(270)), l.rightmostpoint.horz)
 
                 if event.key == pygame.K_z and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                    l.apply_force(Force(100, l.angle + rad(270)), l.leftmostpoint.horz)
+                    l.apply_force(Force(200, l.angle + rad(270)), l.leftmostpoint.horz)
                 if event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                     l.maintain_axle(l.LEFT)
                     l.apply_force(Force(8000, rad(270)), l.leftmostpoint.horz)
-                if event.key == pygame.K_d:
-                    l.apply_force(Force(100, rad(0)), 0)
-                if event.key == pygame.K_a:
-                    l.apply_force(Force(100, rad(180)), 0)
+                if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius, ground_y):
+                    if event.key == pygame.K_d:
+                        l.apply_force(Force(100, rad(0)), 0)
+                    if event.key == pygame.K_a:
+                        l.apply_force(Force(100, rad(180)), 0)
 
                 if event.key == pygame.K_ESCAPE:
                     quit()
