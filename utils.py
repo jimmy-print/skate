@@ -49,7 +49,7 @@ ORANGE = 255, 165, 0
 GREY = 125, 125, 125
 CYAN = 0, 255, 255
 
-D_WIDTH, D_HEIGHT = 1280, 720
+D_WIDTH, D_HEIGHT = 1500, 720
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 
 
@@ -61,3 +61,25 @@ pygame.font.init()
 font = pygame.font.Font("inconsolata.ttf", 15)
 
 debug = True
+
+
+class tolstoj:
+    def __init__(self, loops):
+        self.loops = loops
+        self.cond = False
+        self.i = None
+
+    def do(self):
+        self.cond = True
+        self.i = 0
+
+    def iter(self):
+        try:
+            if self.i < self.loops:
+                self.cond = True
+                self.i += 1
+            else:
+                self.cond = False
+                self.i = None
+        except TypeError:
+            pass

@@ -19,7 +19,7 @@ def main():
     init_axle_x = 100
     init_axle_y = 500
     axle = axle__(init_axle_x, init_axle_y, 10)
-    length = 300
+    length = 250
     wheels_horz_d = 50
     l = line(
         axle,
@@ -32,13 +32,13 @@ def main():
     )
     total_horz = abs(l.leftmostpoint.horz) + l.rightmostpoint.horz
 
-    ground_y = 125
+    ground_y = 50
 
     t = 0
     fill = True
 
     fpsclock = pygame.time.Clock()
-    fps_desired = 30
+    fps_desired = 45
 
     def pause():
         while True:
@@ -53,18 +53,37 @@ def main():
 
     frm_by_frm = False
 
-    center_x = l.leftmostpoint.x + math.cos(l.angle - rad(15)) * wheels_horz_d
-    center_y = (l.leftmostpoint.y + math.sin(l.angle - rad(15)) * wheels_horz_d)
-
     l.maintain_axle(l.CENT)
+
+    left_pop = tolstoj(5)
+    right_pop = tolstoj(5)
+
+    left_small_push = tolstoj(2)
+    right_small_push = tolstoj(2)
+
+    fake_state_machine = {
+        "left_pop": left_pop,
+        "right_pop": right_pop,
+        "left_small_push": left_small_push,
+        "right_small_push": right_small_push
+    }
     while True:
         t += 1
 
+        left_pop.iter()
+        right_pop.iter()
+        left_small_push.iter()
+        right_small_push.iter()
+
         pausing_this_frm = False
+
+        print(left_pop.cond)
+        draw_text('asdfasdadf', 400, 400)
 
         if fill:
             display.fill(BLACK)
         draw_text(f't={t}', 100, 80)
+        draw_text(str(left_pop.cond), 100, 100)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -84,17 +103,23 @@ def main():
                 if event.key == pygame.K_p:
                     debug = not debug
                 if event.key == pygame.K_c and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                    l.apply_force(Force(200, l.angle + rad(270)), l.rightmostpoint.horz)
+                    l.apply_force(Force(150, l.angle + rad(270)), l.rightmostpoint.horz)
+                    right_small_push.do()
                 if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                     l.maintain_axle(l.RIGH)
-                    l.apply_force(Force(8000, rad(270)), l.rightmostpoint.horz)
+                    l.apply_force(Force(4000, rad(270)), l.rightmostpoint.horz)
 
+                    right_pop.do()
                 if event.key == pygame.K_z and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                    l.apply_force(Force(200, l.angle + rad(270)), l.leftmostpoint.horz)
+                    l.apply_force(Force(150, l.angle + rad(270)), l.leftmostpoint.horz)
+                    left_small_push.do()
                 if event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                     l.maintain_axle(l.LEFT)
-                    l.apply_force(Force(8000, rad(270)), l.leftmostpoint.horz)
-                if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius, ground_y):
+                    l.apply_force(Force(4000, rad(270)), l.leftmostpoint.horz)
+
+                    left_pop.do()
+                if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius,
+                                                        ground_y):
                     if event.key == pygame.K_d:
                         l.apply_force(Force(100, rad(0)), 0)
                     if event.key == pygame.K_a:
@@ -179,7 +204,7 @@ def main():
             l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(90)), l.leftmostpoint.horz)
             l.raise_uniformwise(ground_y - l.leftmostpoint.y)
             l.raise_uniformwise(5)
-        if l.rightmostpoint.y < ground_y and l.axle_loc == l.CENT  and get_x_y_components(l.axle.velocity)[1] < 0:
+        if l.rightmostpoint.y < ground_y and l.axle_loc == l.CENT and get_x_y_components(l.axle.velocity)[1] < 0:
             x_component = get_x_y_components(l.axle.velocity)[0]
 
             if x_component > 0:
@@ -188,10 +213,10 @@ def main():
                 l.axle.velocity = Velocity(abs(x_component), rad(180))
             elif x_component == 0:
                 l.axle.velocity = Velocity(0, 0)
-            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(90)), l.rightmostpoint.horz, color=CYAN)
+            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(90)), l.rightmostpoint.horz,
+                          color=CYAN)
             l.raise_uniformwise(ground_y - l.rightmostpoint.y)
             l.raise_uniformwise(5)
-
 
         if l.leftmostpoint.x < 0:
             y_component = get_x_y_components(l.axle.velocity)[1]
@@ -213,7 +238,8 @@ def main():
                 l.axle.velocity = Velocity(abs(y_component), rad(270))
             elif y_component == 0:
                 l.axle.velocity = Velocity(0, 0)
-            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(0)), l.rightmostpoint.horz, color=CYAN)
+            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(0)), l.rightmostpoint.horz,
+                          color=CYAN)
             l.push_left_uniformwise(5)
         if l.leftmostpoint.x > D_WIDTH:
             y_component = get_x_y_components(l.axle.velocity)[1]
@@ -224,7 +250,8 @@ def main():
                 l.axle.velocity = Velocity(abs(y_component), rad(270))
             elif y_component == 0:
                 l.axle.velocity = Velocity(0, 0)
-            l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(180)), l.leftmostpoint.horz, color=CYAN)
+            l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(180)), l.leftmostpoint.horz,
+                          color=CYAN)
             l.push_left_uniformwise(-5)
         if l.rightmostpoint.x > D_WIDTH:
             y_component = get_x_y_components(l.axle.velocity)[1]
@@ -235,14 +262,17 @@ def main():
                 l.axle.velocity = Velocity(abs(y_component), rad(270))
             elif y_component == 0:
                 l.axle.velocity = Velocity(0, 0)
-            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(180)), l.rightmostpoint.horz, color=CYAN)
+            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(180)), l.rightmostpoint.horz,
+                          color=CYAN)
             l.push_left_uniformwise(-5)
-        draw_man(left_wheel_top_x=left_wheel_center_x, left_wheel_top_y=left_wheel_center_y + wheel_radius,
-                 right_wheel_top_x=right_wheel_center_x, right_wheel_top_y=right_wheel_center_y + wheel_radius,
-                 l_angle=l.angle, wheel_horz=wheels_horz_d)
+
         l.tick()
 
         l.draw()
+
+        draw_man(left_wheel_top_x=left_wheel_center_x, left_wheel_top_y=left_wheel_center_y + wheel_radius,
+                 right_wheel_top_x=right_wheel_center_x, right_wheel_top_y=right_wheel_center_y + wheel_radius,
+                 l_angle=l.angle, wheel_horz=wheels_horz_d, board_len=length, state=fake_state_machine)
 
         pygame.draw.circle(display, WHITE, (
             center_x,
@@ -256,8 +286,6 @@ def main():
         # rad(15 deg) is magic number
 
         draw_text(f'fps={fps_desired}', 100, 140)
-
-
 
         pygame.display.update()
         fpsclock.tick(fps_desired)
