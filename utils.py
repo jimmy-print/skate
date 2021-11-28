@@ -51,6 +51,7 @@ CYAN = 0, 255, 255
 
 D_WIDTH, D_HEIGHT = 1500, 720
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
+debug = False
 
 
 def draw_text(s, x, y):
@@ -59,8 +60,6 @@ def draw_text(s, x, y):
 
 pygame.font.init()
 font = pygame.font.Font("inconsolata.ttf", 15)
-
-debug = True
 
 
 class tolstoj:

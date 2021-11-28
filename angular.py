@@ -1,5 +1,6 @@
 import pygame
 from math import sin, cos, sqrt, acos
+import utils
 from utils import *
 from phys import *
 from aesthetics import draw_man
@@ -15,7 +16,6 @@ wheel_radius = 12
 
 
 def main():
-    global debug
     init_axle_x = 100
     init_axle_y = 500
     axle = axle__(init_axle_x, init_axle_y, 10)
@@ -39,6 +39,8 @@ def main():
 
     fpsclock = pygame.time.Clock()
     fps_desired = 45
+
+    print(f'debug: {utils.debug}')
 
     def pause():
         while True:
@@ -77,9 +79,6 @@ def main():
 
         pausing_this_frm = False
 
-        print(left_pop.cond)
-        draw_text('asdfasdadf', 400, 400)
-
         if fill:
             display.fill(BLACK)
         draw_text(f't={t}', 100, 80)
@@ -101,7 +100,7 @@ def main():
                 if event.key == pygame.K_UP:
                     fps_desired += 1
                 if event.key == pygame.K_p:
-                    debug = not debug
+                    utils.debug = not utils.debug
                 if event.key == pygame.K_c and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
                     l.apply_force(Force(150, l.angle + rad(270)), l.rightmostpoint.horz)
                     right_small_push.do()

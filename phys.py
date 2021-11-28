@@ -114,11 +114,8 @@ def get_net_force(fs):
 
 
 def draw_vector(vector, x, y, color, display_multiply_factor=100):
-    global debug
-    if not debug:  # MAKE THIS SHIT WORK
+    if not utils.debug:
         return
-
-    
     draw_mag = vector.magnitude * display_multiply_factor
 
     pygame.draw.line(display, color,
