@@ -4,6 +4,10 @@ import utils
 from utils import *
 from phys import *
 from aesthetics import draw_man
+from textbox import TextBox
+import json
+import pathlib
+import glob
 
 LEFTWHEEL = 'LEFTWHEEL'
 RIGHTWHEEL = 'RIGHTWHEEL'
@@ -15,9 +19,41 @@ g_accel = 0.4
 wheel_radius = 12
 
 
+def draw_available_files(currently_playing, playing):
+    i = 0
+    draw_text('Recorded tricks:', stage_width + 20, 300)
+    goteem = False
+    for f in glob.glob("tricks/*.json"):
+        i += 1
+        ff = f[7:len(f)].split('.')[0]
+
+        draw_text(ff, stage_width + 60, 300 + i * 40)
+
+        r = pygame.Rect(stage_width + 20, 300 + i * 40, 30, 30)
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+
+        if in_rect(mouse_x, mouse_y, r):
+            pygame.draw.rect(display, lighter(KINDADARKGREY), r)
+            if pygame.mouse.get_pressed()[0]:
+                goteem = True
+                thingy = f
+        else:
+            pygame.draw.rect(display, KINDADARKGREY, r)
+
+
+        pygame.draw.polygon(display, GREEN, ((stage_width + 20 + 5, 300 + i * 40 + 5), (stage_width + 20 + 5, 300 + i * 40 + 30 - 5), (stage_width + 20 + 30 - 5, 300 + i * 40 + 15)))
+
+    if playing:
+        return currently_playing
+
+    if goteem:
+        return thingy
+
 def main():
-    init_axle_x = 100
-    init_axle_y = 500
+    ground_y = 50 + (D_HEIGHT - stage_height)
+
+    init_axle_x = 50
+    init_axle_y = ground_y - wheel_radius * 2
     axle = axle__(init_axle_x, init_axle_y, 10)
     length = 250
     wheels_horz_d = 50
@@ -32,15 +68,12 @@ def main():
     )
     total_horz = abs(l.leftmostpoint.horz) + l.rightmostpoint.horz
 
-    ground_y = 50
 
     t = 0
     fill = True
 
     fpsclock = pygame.time.Clock()
     fps_desired = 45
-
-    print(f'debug: {utils.debug}')
 
     def pause():
         while True:
@@ -52,6 +85,25 @@ def main():
                         quit()
                 if event.type == pygame.QUIT:
                     quit()
+
+    def stop_recording():
+        input = TextBox((stage_width + margin, D_HEIGHT - margin * 20, 150, 30), command=lambda _, __: None, clear_on_enter=True, inactive_on_enter=False)
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        quit()
+                    if event.key == pygame.K_RETURN:
+                        return ''.join(input.buffer)
+                if event.type == pygame.QUIT:
+                    quit()
+                input.get_event(event)
+
+            input.update()
+            input.draw(display)
+
+            pygame.display.update()
+
 
     frm_by_frm = False
 
@@ -69,6 +121,40 @@ def main():
         "left_small_push": left_small_push,
         "right_small_push": right_small_push
     }
+
+    recording = False
+
+    dat = []
+    tmp = {}
+
+    recording_area_height = D_HEIGHT - stage_height
+    num_of_actions = 6
+    each_bar_height = recording_area_height / num_of_actions
+    def convert_dat_to_rects(dat):
+        for t, states in dat:
+            for movement in states:
+                if states[movement]:
+                    if movement == 'left_small_push':
+                        yield pygame.Rect(t + 220, stage_height, 1, each_bar_height), RED
+                    elif movement == 'right_small_push':
+                        yield pygame.Rect(t + 220, stage_height + 1 * each_bar_height, 1, each_bar_height), GREEN
+                    elif movement == 'left_pop':
+                        yield pygame.Rect(t + 220, stage_height + 2 * each_bar_height, 1, each_bar_height), YELLOW
+                    elif movement == 'right_pop':
+                        yield pygame.Rect(t + 220, stage_height + 3 * each_bar_height, 1, each_bar_height), BLUE
+                    elif movement == 'left_push':
+                        yield pygame.Rect(t + 220, stage_height + 4 * each_bar_height, 1, each_bar_height), CYAN
+                    elif movement == 'right_push':
+                        yield pygame.Rect(t + 220, stage_height + 5 * each_bar_height, 1, each_bar_height), MAGENTA
+                    else:
+                        raise RuntimeError(f'state contains invalid movement \'{movement}\', at t={t}')
+
+    playing = False
+    currently_playing = None
+    current_dat = []
+    current_rects = []
+    done = False
+
     while True:
         t += 1
 
@@ -77,16 +163,38 @@ def main():
         left_small_push.iter()
         right_small_push.iter()
 
+        tmp = {}
+
+        tmp["right_small_push"] = False
+        tmp["left_small_push"] = False
+        tmp["right_pop"] = False
+        tmp["left_pop"] = False
+        tmp["left_push"] = False
+        tmp["right_push"] = False
+
         pausing_this_frm = False
 
         if fill:
-            display.fill(BLACK)
+            display.fill(WHITE)
         pygame.draw.rect(display, BLACK, ((0, 0, stage_width, stage_height)))
+        pygame.draw.rect(display, KINDADARKGREY, ((0, 0 + stage_height, D_WIDTH - (D_WIDTH - stage_width), D_HEIGHT - (D_HEIGHT - stage_height))))
 
-        draw_text(f't={t}', 100, 80)
-        draw_text(str(left_pop.cond), 100, 100)
+        draw_text(f't={t}', 100, 100)
+        draw_text(f'Recording: {recording}', 100, 80)
+        draw_text(f'Playing: {playing}, {currently_playing}', 100, 60)
+
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
+
+        if recording:
+            pygame.draw.rect(display, WHITE, ((t + 220, 0 + stage_height, 1, D_HEIGHT - (D_HEIGHT - stage_height))))
+        draw_text(f'Push down left side (z)', 10, D_HEIGHT - (D_HEIGHT - stage_height))
+        draw_text(f'Push down right side (c)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 1 * each_bar_height)
+        draw_text(f'Pop left side (shift+z)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 2 * each_bar_height)
+        draw_text(f'Pop right side (shift+c)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 3 * each_bar_height)
+        draw_text(f'Move left (a)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 4 * each_bar_height)
+        draw_text(f'Move right (d)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 5 * each_bar_height)
+
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -105,31 +213,85 @@ def main():
                     fps_desired += 1
                 if event.key == pygame.K_p:
                     utils.debug = not utils.debug
-                if event.key == pygame.K_c and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
+
+                if not playing:
+                    if event.key == pygame.K_c and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        l.apply_force(Force(150, l.angle + rad(270)), l.rightmostpoint.horz)
+                        right_small_push.do()
+
+                        tmp["right_small_push"] = True
+                    if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        l.maintain_axle(l.RIGH)
+                        l.apply_force(Force(4000, rad(270)), l.rightmostpoint.horz)
+
+                        right_pop.do()
+
+                        tmp["right_pop"] = True
+                    if event.key == pygame.K_z and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        l.apply_force(Force(150, l.angle + rad(270)), l.leftmostpoint.horz)
+                        left_small_push.do()
+
+                        tmp["left_small_push"] = True
+                    if event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        l.maintain_axle(l.LEFT)
+                        l.apply_force(Force(4000, rad(270)), l.leftmostpoint.horz)
+
+                        left_pop.do()
+
+                        tmp["left_pop"] = True
+                    if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius,
+                                                            ground_y):
+                        if event.key == pygame.K_d:
+                            l.apply_force(Force(100, rad(0)), 0)
+                            tmp["right_push"] = True
+                        if event.key == pygame.K_a:
+                            l.apply_force(Force(100, rad(180)), 0)
+                            tmp["left_push"] = True
+
+                if event.key == pygame.K_ESCAPE:
+                    quit()
+
+        print(current_dat)
+        if playing:
+            pygame.draw.rect(display, WHITE, ((t + 220, 0 + stage_height, 1, D_HEIGHT - (D_HEIGHT - stage_height))))
+
+            for rect, color in current_rects:
+                pygame.draw.rect(display, color, rect)
+
+            try:
+                if current_dat[t][1]['right_small_push']:
                     l.apply_force(Force(150, l.angle + rad(270)), l.rightmostpoint.horz)
                     right_small_push.do()
-                if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                elif current_dat[t][1]['left_small_push']:
+                    l.apply_force(Force(150, l.angle + rad(270)), l.leftmostpoint.horz)
+                    left_small_push.do()
+                elif current_dat[t][1]['right_pop']:
                     l.maintain_axle(l.RIGH)
                     l.apply_force(Force(4000, rad(270)), l.rightmostpoint.horz)
 
                     right_pop.do()
-                if event.key == pygame.K_z and not pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                    l.apply_force(Force(150, l.angle + rad(270)), l.leftmostpoint.horz)
-                    left_small_push.do()
-                if event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                elif current_dat[t][1]['left_pop']:
                     l.maintain_axle(l.LEFT)
                     l.apply_force(Force(4000, rad(270)), l.leftmostpoint.horz)
 
                     left_pop.do()
-                if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius,
-                                                        ground_y):
-                    if event.key == pygame.K_d:
+                elif current_dat[t][1]['right_push']:
+                    if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius,
+                                                                ground_y):
                         l.apply_force(Force(100, rad(0)), 0)
-                    if event.key == pygame.K_a:
+                elif current_dat[t][1]['left_push']:
+                    if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius,
+                                                                ground_y):
                         l.apply_force(Force(100, rad(180)), 0)
+            except IndexError:
+                playing = False
+                currently_playing = None
+                done = False
 
-                if event.key == pygame.K_ESCAPE:
-                    quit()
+        dat.append((t, tmp))
+        if recording:
+            for rect, color in convert_dat_to_rects(dat):
+                pygame.draw.rect(display, color, rect)
 
         pygame.draw.line(display, WHITE, (0, D_HEIGHT - ground_y), (D_WIDTH, D_HEIGHT - ground_y))
 
@@ -290,24 +452,75 @@ def main():
 
         draw_text(f'fps={fps_desired}', 100, 140)
 
-        
         pygame.draw.rect(display, DARKGREY, ((stage_width, 0, 1000, 1000)))
-
 
         margin = 30
         button_width = 30
         button_height = 30
+
+        currently_playing = draw_available_files(currently_playing=currently_playing, playing=playing)
+        if currently_playing is not None and not recording and not done:
+            done = True
+            l.leftmostpoint.x = 0
+            l.leftmostpoint.y = ground_y + wheel_radius * 2
+            l.leftmostpoint.horz = -wheels_horz_d
+            l.leftmostpoint.rotational_inertia = l.leftmostpoint.mass * l.leftmostpoint.horz ** 2
+
+            l.rightmostpoint.x = l.leftmostpoint.x + length
+            l.rightmostpoint.y = ground_y + wheel_radius * 2
+            l.rightmostpoint.horz = wheels_horz_d + length - wheels_horz_d * 2
+            l.rightmostpoint.rotational_inertia = l.rightmostpoint.mass * l.rightmostpoint.horz ** 2
+
+            l.axle.x = l.leftmostpoint.x + wheels_horz_d
+            l.axle.y = ground_y + wheel_radius * 2
+            l.axle.velocity = Velocity(0, 0)
+            l.angular_speed = 0
+
+            l.angle = 0
+            t = 0
+            playing = True
+
+            with open(currently_playing) as f:
+                current_dat = json.load(f)
+        current_rects = convert_dat_to_rects(current_dat)
+
 
         record_button_rect = pygame.Rect(
             stage_width + margin, 0 + margin,
             button_width, button_height)
         if in_rect(mouse_x, mouse_y, record_button_rect):
             pygame.draw.rect(display, lighter(KINDADARKGREY), record_button_rect)
-            pygame.draw.circle(display, RED, (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2), button_width / 4)
+            pygame.draw.circle(display, RED,
+                               (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2),
+                               button_width / 4)
+            if pygame.mouse.get_pressed()[0]:
+                l.leftmostpoint.x = 0
+                l.leftmostpoint.y = ground_y + wheel_radius * 2
+                l.leftmostpoint.horz = -wheels_horz_d
+                l.leftmostpoint.rotational_inertia = l.leftmostpoint.mass * l.leftmostpoint.horz ** 2
 
+                l.rightmostpoint.x = l.leftmostpoint.x + length
+                l.rightmostpoint.y = ground_y + wheel_radius * 2
+                l.rightmostpoint.horz = wheels_horz_d + length - wheels_horz_d * 2
+                l.rightmostpoint.rotational_inertia = l.rightmostpoint.mass * l.rightmostpoint.horz ** 2
+
+                l.axle.x = l.leftmostpoint.x + wheels_horz_d
+                l.axle.y = ground_y + wheel_radius * 2
+                l.axle.velocity = Velocity(0, 0)
+                l.angular_speed = 0
+
+                l.angle = 0
+                t = 0
+
+                recording = True
+                playing = False
+
+                dat = []
         else:
             pygame.draw.rect(display, KINDADARKGREY, record_button_rect)
-            pygame.draw.circle(display, RED, (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2), button_width / 4)
+            pygame.draw.circle(display, RED,
+                               (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2),
+                               button_width / 4)
 
         stop_button_rect = pygame.Rect(
             record_button_rect[0] + button_width + margin / 2,
@@ -315,15 +528,43 @@ def main():
             button_width, button_height)
         if in_rect(mouse_x, mouse_y, stop_button_rect):
             pygame.draw.rect(display, lighter(KINDADARKGREY), stop_button_rect)
-            pygame.draw.rect(display, lighter(GREY), (stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2, button_height / 2))
+            pygame.draw.rect(display, lighter(GREY), (
+            stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2,
+            button_height / 2))
+            if pygame.mouse.get_pressed()[0] and recording:
+                filenamefirstpart = stop_recording()
+                recording = False
+                l.leftmostpoint.x = 0
+                l.leftmostpoint.y = ground_y + wheel_radius * 2
+                l.leftmostpoint.horz = -wheels_horz_d
+                l.leftmostpoint.rotational_inertia = l.leftmostpoint.mass * l.leftmostpoint.horz ** 2
+
+                l.rightmostpoint.x = l.leftmostpoint.x + length
+                l.rightmostpoint.y = ground_y + wheel_radius * 2
+                l.rightmostpoint.horz = wheels_horz_d + length - wheels_horz_d * 2
+                l.rightmostpoint.rotational_inertia = l.rightmostpoint.mass * l.rightmostpoint.horz ** 2
+
+                l.axle.x = l.leftmostpoint.x + wheels_horz_d
+                l.axle.y = ground_y + wheel_radius * 2
+                l.axle.velocity = Velocity(0, 0)
+                l.angular_speed = 0
+
+                l.angle = 0
+                t = 0
+
+                with open(f'tricks/{filenamefirstpart}.json', 'w') as f:
+                    json.dump(dat, f)
+
+                dat = []
+
+                done = False
         else:
             pygame.draw.rect(display, KINDADARKGREY, stop_button_rect)
-            pygame.draw.rect(display, GREY, (stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2, button_height / 2))
+            pygame.draw.rect(display, GREY, (
+            stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2,
+            button_height / 2))
 
 
-
-        
-        
         pygame.display.update()
         fpsclock.tick(fps_desired)
 

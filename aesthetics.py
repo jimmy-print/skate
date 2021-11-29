@@ -61,7 +61,7 @@ def draw_man(left_wheel_top_x, left_wheel_top_y, right_wheel_top_x, right_wheel_
 
 
     head_point = (
-        hip_point[0], hip_point[1] + vert * 1.25)
+        hip_point[0], hip_point[1] + vert * 1)
 
     display.fill(GREEN, ((head_point[0], D_HEIGHT - head_point[1]), (10, 10)))
 

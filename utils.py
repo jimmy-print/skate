@@ -13,9 +13,10 @@ GREY = 125, 125, 125
 CYAN = 0, 255, 255
 DARKGREY = 25, 25, 25
 KINDADARKGREY = 40, 40, 40
+MAGENTA = 255, 0, 255
 
-D_WIDTH, D_HEIGHT = 1500, 750
-stage_width, stage_height = 1100, 750
+D_WIDTH, D_HEIGHT = 1500, 700
+stage_width, stage_height = 1300, 600
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 debug = False
 
