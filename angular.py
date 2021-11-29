@@ -81,8 +81,12 @@ def main():
 
         if fill:
             display.fill(BLACK)
+        pygame.draw.rect(display, BLACK, ((0, 0, stage_width, stage_height)))
+
         draw_text(f't={t}', 100, 80)
         draw_text(str(left_pop.cond), 100, 100)
+
+        mouse_x, mouse_y = pygame.mouse.get_pos()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -240,7 +244,7 @@ def main():
             l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(0)), l.rightmostpoint.horz,
                           color=CYAN)
             l.push_left_uniformwise(5)
-        if l.leftmostpoint.x > D_WIDTH:
+        if l.leftmostpoint.x > stage_width:
             y_component = get_x_y_components(l.axle.velocity)[1]
 
             if y_component > 0:
@@ -252,7 +256,7 @@ def main():
             l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(180)), l.leftmostpoint.horz,
                           color=CYAN)
             l.push_left_uniformwise(-5)
-        if l.rightmostpoint.x > D_WIDTH:
+        if l.rightmostpoint.x > stage_width:
             y_component = get_x_y_components(l.axle.velocity)[1]
 
             if y_component > 0:
@@ -286,6 +290,29 @@ def main():
 
         draw_text(f'fps={fps_desired}', 100, 140)
 
+        
+        pygame.draw.rect(display, DARKGREY, ((stage_width, 0, 1000, 1000)))
+
+
+        margin = 30
+        button_width = 30
+        button_height = 30
+
+        record_button_rect = pygame.Rect(
+            stage_width + margin, 0 + margin,
+            button_width, button_height)
+        pygame.draw.rect(display, KINDADARKGREY, record_button_rect)
+        pygame.draw.circle(display, RED, (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2), button_width / 4)
+
+        stop_button_rect = pygame.Rect(
+            record_button_rect[0] + button_width + margin / 2,
+            record_button_rect[1],
+            button_width, button_height)
+        pygame.draw.rect(display, KINDADARKGREY, stop_button_rect)
+        pygame.draw.rect(display, GREY, (stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2, button_height / 2))
+
+        
+        
         pygame.display.update()
         fpsclock.tick(fps_desired)
 

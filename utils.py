@@ -1,6 +1,27 @@
 import math
 import pygame
 
+WHITE = 255, 255, 255
+BLACK = 0, 0, 0
+RED = 255, 0, 0
+GREEN = 0, 255, 0
+BLUE = 0, 0, 255
+YELLOW = 255, 255, 0
+ORANGE = 255, 165, 0
+# PINK = 255, 0, 0
+GREY = 125, 125, 125
+CYAN = 0, 255, 255
+DARKGREY = 10, 10, 10
+KINDADARKGREY = 50, 50, 50
+
+D_WIDTH, D_HEIGHT = 1500, 750
+stage_width, stage_height = 1100, 750
+display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
+debug = False
+
+pygame.font.init()
+font = pygame.font.Font("inconsolata.ttf", 15)
+
 
 def deg(radangle):
     return radangle * 180 / math.pi
@@ -38,28 +59,8 @@ def close(n, m, min_diff=3):
     return abs(n - m) <= min_diff
 
 
-WHITE = 255, 255, 255
-BLACK = 0, 0, 0
-RED = 255, 0, 0
-GREEN = 0, 255, 0
-BLUE = 0, 0, 255
-YELLOW = 255, 255, 0
-ORANGE = 255, 165, 0
-# PINK = 255, 0, 0
-GREY = 125, 125, 125
-CYAN = 0, 255, 255
-
-D_WIDTH, D_HEIGHT = 1500, 720
-display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
-debug = False
-
-
 def draw_text(s, x, y):
     display.blit(font.render(s, True, WHITE), (x, y))
-
-
-pygame.font.init()
-font = pygame.font.Font("inconsolata.ttf", 15)
 
 
 class tolstoj:
