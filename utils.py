@@ -11,8 +11,8 @@ ORANGE = 255, 165, 0
 # PINK = 255, 0, 0
 GREY = 125, 125, 125
 CYAN = 0, 255, 255
-DARKGREY = 10, 10, 10
-KINDADARKGREY = 50, 50, 50
+DARKGREY = 25, 25, 25
+KINDADARKGREY = 40, 40, 40
 
 D_WIDTH, D_HEIGHT = 1500, 750
 stage_width, stage_height = 1100, 750
@@ -83,3 +83,15 @@ class tolstoj:
                 self.i = None
         except TypeError:
             pass
+
+
+def in_rect(x, y, rect):
+    if (rect.x + rect.width > x > rect.x
+        and rect.y + rect.height > y > rect.y):
+        return True
+    return False
+
+
+def lighter(c):
+    "shitty function"
+    return [v + 10 for v in c]

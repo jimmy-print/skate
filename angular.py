@@ -301,15 +301,26 @@ def main():
         record_button_rect = pygame.Rect(
             stage_width + margin, 0 + margin,
             button_width, button_height)
-        pygame.draw.rect(display, KINDADARKGREY, record_button_rect)
-        pygame.draw.circle(display, RED, (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2), button_width / 4)
+        if in_rect(mouse_x, mouse_y, record_button_rect):
+            pygame.draw.rect(display, lighter(KINDADARKGREY), record_button_rect)
+            pygame.draw.circle(display, RED, (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2), button_width / 4)
+
+        else:
+            pygame.draw.rect(display, KINDADARKGREY, record_button_rect)
+            pygame.draw.circle(display, RED, (record_button_rect[0] + button_width / 2, record_button_rect[1] + button_height / 2), button_width / 4)
 
         stop_button_rect = pygame.Rect(
             record_button_rect[0] + button_width + margin / 2,
             record_button_rect[1],
             button_width, button_height)
-        pygame.draw.rect(display, KINDADARKGREY, stop_button_rect)
-        pygame.draw.rect(display, GREY, (stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2, button_height / 2))
+        if in_rect(mouse_x, mouse_y, stop_button_rect):
+            pygame.draw.rect(display, lighter(KINDADARKGREY), stop_button_rect)
+            pygame.draw.rect(display, lighter(GREY), (stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2, button_height / 2))
+        else:
+            pygame.draw.rect(display, KINDADARKGREY, stop_button_rect)
+            pygame.draw.rect(display, GREY, (stop_button_rect[0] + button_width / 4, stop_button_rect[1] + button_height / 4, button_width / 2, button_height / 2))
+
+
 
         
         
