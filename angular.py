@@ -251,7 +251,6 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     quit()
 
-        print(current_dat)
         if playing:
             pygame.draw.rect(display, WHITE, ((t + 220, 0 + stage_height, 1, D_HEIGHT - (D_HEIGHT - stage_height))))
 
