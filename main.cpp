@@ -6,16 +6,45 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <memory>
+#include <string>
+#include <stdexcept>
+#include <numeric>
 
 #include <stdio.h>
 #include <math.h>
 
+const std::string LEFT = "LEFT";
+const std::string CENT = "CENT";
+const std::string RIGH = "RIGH";
 
 
+std::vector<struct aes_wector> wectors_aess;
 
-#include <memory>
-#include <string>
-#include <stdexcept>
+const int stage_width = 1300;
+const int stage_height = 600;
+
+struct color {
+	float r;
+	float g;
+	float b;
+} typedef color;
+
+struct aes_wector {
+	std::pair<float, float> start;
+	std::pair<float, float> end;
+	struct color color;  // why omit struct for 'color color' throws error?? if struct color has already been typedefed
+};
+
+void print_array(std::vector<float> v)
+{
+	for (std::vector<float>::const_iterator i = v.begin(); i != v.end(); i++)
+		std::cout << *i << " ";
+	std::cout << "\n";
+}
+
+template <typename T>
+struct aes_wector calc_wector_data_struct(T wector, float x, float y, color color, float display_multiply_factor);
 
 template<typename ... Args>
 std::string string_format( const std::string& format, Args ... args )
@@ -28,13 +57,10 @@ std::string string_format( const std::string& format, Args ... args )
 	return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
 }
 
-const int D_WIDTH = 1280;
-const int D_HEIGHT = 720;
-struct color {
-	float r;
-	float g;
-	float b;
-} typedef color;
+void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp);
+
+const int D_WIDTH = 1500;
+const int D_HEIGHT = 700;
 
 color BLACK = {0.1, 0.1, 0.1};
 color WHITE = {1, 1, 1};
@@ -94,8 +120,13 @@ std::pair<float, float> get_xy_components(T wector) {
 
 template <typename T>
 T recombine(float x_mag, float y_mag) {
+// may be broken... don't use
 	float hypo = sqrt(x_mag * x_mag + y_mag * y_mag);
-	return T(hypo, acos(x_mag / hypo));
+	if (hypo != 0) {
+	    return T(hypo, acos(x_mag / hypo));
+	} else {
+	    return T(hypo, 0);
+	}
 }
 
 
@@ -134,7 +165,7 @@ T get_net_vector(T v0, T v1) {
 		v00.magnitude = v1.magnitude;
 		v00.direction = v1.direction;
 		v11.magnitude = v0.magnitude;
-		v11.direction = v1.direction;
+		v11.direction = v0.direction;
 	}
 
 	// simplify stupid logic
@@ -181,6 +212,10 @@ T get_net_vector(T v0, T v1) {
 }
 
 Force get_net_force(std::vector<Force> forces) {
+	if (forces.size() == 0) {
+		return Force(0, 0);
+	}
+
 	Force tmp_f = forces[0];
 	std::vector<Force> other_fs = std::vector<Force>(forces.begin() + 1, forces.end());
 	for (auto f : other_fs) {
@@ -215,7 +250,7 @@ public:
 		float daccel = net.magnitude / mass;
 		Velocity dv(daccel, net.direction);
 		v = get_net_vector(v, dv);
-		
+
 		float dx = cos(v.direction) * v.magnitude;
 		float dy = sin(v.direction) * v.magnitude;
 
@@ -225,6 +260,144 @@ public:
 
 	std::vector<float> get_vs() {
 		return std::vector<float> {x, y};
+	}
+};
+
+class PointMassOnLine : public PointMass {
+public:
+	float horzd;
+	float rotational_inertia;
+	Velocity* rot_velocity_ptr;
+	PointMassOnLine(PointMass axle, float horzdp, float massp) : PointMass(axle.x + horzdp, axle.y, massp) {
+		horzd = horzdp;
+		rotational_inertia = mass * pow(horzd, 2);
+	}
+};
+
+class Line {
+public:
+	float wheels_horz_d;
+	float length;
+	PointMass* axle;
+	std::vector<PointMassOnLine*> points;
+	PointMassOnLine* leftmost;
+	PointMassOnLine* rightmost;
+
+	float angle_r;
+	float angular_accel_r;
+	float angular_speed_r;
+
+	float rotational_inertia;
+
+	float mass;
+
+	std::string axle_loc;
+
+	Line(PointMass* axlep,
+	     std::vector<PointMassOnLine*> pointsp,
+	     float wheels_horz_dp,
+	     float lengthp) {
+		length = lengthp;
+		axle = axlep;
+		wheels_horz_d = wheels_horz_dp;
+
+		// todo assert all same points.ys
+		// todo assert all diff points.xs
+
+        points = pointsp;
+
+        PointMassOnLine* smallest = points[0];
+        for (auto point : points) {
+            if (point->x < smallest->x) {
+                smallest = point;
+            }
+        }
+		leftmost = smallest;
+		PointMassOnLine* largest = points[0];
+        for (auto point : points) {
+            if (point->x > smallest->x) {
+                largest = point;
+            }
+        }
+		rightmost = largest;
+
+		angle_r = 0;
+		angular_accel_r = 0;
+		angular_speed_r = 0;
+
+		rotational_inertia = std::accumulate(points.begin(), points.end(), 0.0, [&](float x, PointMassOnLine* y) {return x + y->rotational_inertia;});
+		mass = std::accumulate(points.begin(), points.end(), 0.0,  [&](float x, PointMassOnLine* y) {return x + y->mass;});
+		axle_loc = LEFT;
+	}
+
+	void apply_force(Force force, int distance_from_axle_on_line, color color) {
+		if (distance_from_axle_on_line == 0) {
+			Velocity dv(force.magnitude / mass, force.direction);
+			axle->v = get_net_vector<Velocity>(axle->v, dv);
+		} else {
+			float torque = force.magnitude * distance_from_axle_on_line * sin(force.direction - angle_r);
+			angular_accel_r = torque / rotational_inertia;
+			angular_speed_r += angular_accel_r;
+		}
+	}
+
+	void tick() {
+		angle_r += angular_speed_r;
+		if (deg(angle_r) > 360) {
+			angle_r = rad(deg(angle_r) - 360);  // simplify this to something to do with pi instead of changing it to rad deg back and forth
+		}
+		axle->tick();
+		for (auto point : points) {
+			if (point->horzd > 0) {
+				if (angular_speed_r > 0)
+					point->v = Velocity(point->horzd * angular_speed_r, angle_r + rad(90));
+				else if (angular_speed_r < 0)
+					point->v = Velocity(abs(point->horzd) * abs(angular_speed_r), angle_r + rad(270));
+				else
+					point->v = Velocity(0, 0);
+			} else if (point->horzd < 0) {
+				if (angular_speed_r > 0)
+					point->v = Velocity(abs(point->horzd) * angular_speed_r, angle_r + rad(270));
+				else if (angular_speed_r < 0)
+					point->v = Velocity(abs(point->horzd) * abs(angular_speed_r), angle_r + rad(90));
+				else
+					point->v = Velocity(0, 0);
+			}
+			point->rot_velocity_ptr = &point->v;
+
+		    wectors_aess.push_back(calc_wector_data_struct(point->v, point->x, point->y, WHITE, 20));
+            wectors_aess.push_back(calc_wector_data_struct(axle->v, axle->x, axle->y, RED, 20));
+            std::cout << "point velocity::magnitude: " << point->v.magnitude << " ,direction: " << deg(point->v.direction) << "\n";
+			Velocity v = get_net_vector<Velocity>(point->v, axle->v);
+             wectors_aess.push_back(calc_wector_data_struct(v, point->x, point->y, GREEN, 20));
+			if (axle->v.magnitude != 0) {
+				// draw vector
+			}
+			point->v = v;
+			point->tick();
+		}
+	}
+
+	void draw(GLuint shader, GLuint VAO, GLuint VBO, GLuint mvp_l, glm::mat4 mvp) {
+		std::vector<float> leftmostvs = {leftmost->x, leftmost->y, 1.0, 1.0, 1.0, 1.0};
+		std::vector<float> rightmostvs = {rightmost->x, rightmost->y, 1.0, 0.0, 1.0, 1.0};
+		std::vector<float> axlevs = {axle->x, axle->y, 1.0, 1.0, 0.0, 1.0};
+
+		//print_array(axlevs);
+		//print_array(leftmostvs);
+
+
+		draw_poly(shader, VAO, VBO, leftmostvs, GL_POINTS, 1, mvp_l, mvp);
+		draw_poly(shader, VAO, VBO, rightmostvs, GL_POINTS, 1, mvp_l, mvp);
+		draw_poly(shader, VAO, VBO, axlevs, GL_POINTS, 1, mvp_l, mvp);
+
+        draw_poly(shader, VAO, VBO, {
+            leftmost->x, leftmost->y, 1.0, 1.0, 1.0, 1.0,
+            axle->x, axle->y, 1.0, 1.0, 1.0, 1.0}, GL_LINES, 2, mvp_l, mvp);
+
+        draw_poly(shader, VAO, VBO, {
+            rightmost->x, rightmost->y, 1.0, 1.0, 1.0, 1.0,
+            axle->x, axle->y, 1.0, 1.0, 1.0, 1.0}, GL_LINES, 2, mvp_l, mvp);
 	}
 };
 
@@ -252,11 +425,11 @@ int main()
 
 	PointMass p(10, 10, 1);
 
-	GLuint vao, vbo;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GLuint pvao, pvbo;
+	glGenVertexArrays(1, &pvao);
+	glBindVertexArray(pvao);
+	glGenBuffers(1, &pvbo);
+	glBindBuffer(GL_ARRAY_BUFFER, pvbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(p.get_vs()), &p.get_vs()[0], GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
 	glEnableVertexAttribArray(0);
@@ -264,28 +437,122 @@ int main()
 	GLuint polygon_color_l = glGetUniformLocation(polygon_s, "color_l");
 	GLuint polygon_mvp_l = glGetUniformLocation(polygon_s, "mvp_l");
 
+
+	GLuint wectors_vao, wectors_vbo;
+	glGenVertexArrays(1, &wectors_vao);
+	glBindVertexArray(wectors_vao);
+	glGenBuffers(1, &wectors_vbo);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) 0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	GLuint wectors_s = load_shader("wectors_vs", "wectors_fs");
+	GLuint wectors_mvp_l = glGetUniformLocation(wectors_s, "mvp_l");
+
+
+	float wheel_radius = 12;
+
+	float init_axle_x = 100;
+	float init_axle_y = 500;
+	PointMass axle(init_axle_x, init_axle_y, 10);
+	float length = 300;
+	float wheels_horz_d = 50;
+	PointMassOnLine leftmost(axle, length - wheels_horz_d, 20); // wtf why does this have to be a variable???? or else you get different values inside the class constructor for line when passed as a ptr..
+	PointMassOnLine rightmost(axle, -wheels_horz_d, 20);
+    std::vector<PointMassOnLine*> points = {&leftmost, &rightmost};
+	Line l(&axle, points, wheels_horz_d, length);
+
+	GLuint poly_VAO, poly_VBO;
+	glGenVertexArrays(1, &poly_VAO);
+	glGenVertexArrays(1, &poly_VBO);
+	GLuint poly_shader = load_shader("poly_vs", "poly_fs");
+	GLuint poly_mvp_l = glGetUniformLocation(poly_shader, "mvp");
+	glPointSize(5);
+
+
+    l.apply_force(Force(100.0, rad(270)), l.rightmost->horzd, WHITE);
+    l.tick();
+    int i = 0;
+
 	while (!glfwWindowShouldClose(window)) {
+	    i++;
 		glClearColor(BLACK.r, BLACK.g, BLACK.b, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glfwPollEvents();
 
+		wectors_aess = {};
+
+        l.apply_force(Force(1, rad(0)), 0, BLUE);
+		l.tick();
+		l.draw(poly_shader, poly_VAO, poly_VBO, poly_mvp_l, mvp_m);
+
 		p.reset();
 		p.add_force(Force(0.01, 0));
+		p.add_force(Force(0.01, rad(90)));
 		p.tick();
-		glBufferData(GL_ARRAY_BUFFER, sizeof(p.get_vs()), &p.get_vs()[0], GL_STATIC_DRAW);
+
+		wectors_aess.push_back(calc_wector_data_struct(p.v, p.x, p.y, WHITE, 20));
+		wectors_aess.push_back(calc_wector_data_struct(Force(0.01, 0), p.x, p.y, RED, 1000));
+		wectors_aess.push_back(calc_wector_data_struct(Force(0.01, rad(90)), p.x, p.y, RED, 1000));
+
+		std::vector<float> wectors_dat;
+		for (auto struc : wectors_aess) {
+			wectors_dat.push_back(struc.start.first);
+			wectors_dat.push_back(struc.start.second);
+
+			wectors_dat.push_back(struc.color.r);
+			wectors_dat.push_back(struc.color.g);
+			wectors_dat.push_back(struc.color.b);
+
+			wectors_dat.push_back(struc.end.first);
+			wectors_dat.push_back(struc.end.second);
+
+			wectors_dat.push_back(struc.color.r);
+			wectors_dat.push_back(struc.color.g);
+			wectors_dat.push_back(struc.color.b);
+		}
+
+		glUseProgram(wectors_s);
+		glBindVertexArray(wectors_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, wectors_vbo);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) 0);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (2 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * wectors_dat.size(), &wectors_dat[0], GL_STATIC_DRAW);
+		glDrawArrays(GL_LINES, 0, wectors_aess.size() * 2);
+		glUniformMatrix4fv(wectors_mvp_l, 1, GL_FALSE, &mvp_m[0][0]);
 
 		glUseProgram(polygon_s);
-		glBindVertexArray(vao);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glPointSize(5);
+		glBindVertexArray(pvao);
+		glBindBuffer(GL_ARRAY_BUFFER, pvbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(p.get_vs()), &p.get_vs()[0], GL_STATIC_DRAW);
 		glDrawArrays(GL_POINTS, 0, 1);
-		glUniform3f(polygon_color_l, WHITE.r, WHITE.g, WHITE.b);
+		glUniform3f(polygon_color_l, GREEN.r, GREEN.g, GREEN.b);
 		glUniformMatrix4fv(polygon_mvp_l, 1, GL_FALSE, &mvp_m[0][0]);
 
 		glfwSwapBuffers(window);
 	}
 	return 0;
+}
+
+template <typename T>
+struct aes_wector calc_wector_data_struct(T wector, float x, float y, color color, float display_multiply_factor) {
+	float draw_mag = wector.magnitude * display_multiply_factor;
+
+	struct aes_wector aes;
+
+	aes.start.first = x;
+	aes.start.second = y;
+	aes.end.first = x + cos(wector.direction) * draw_mag;
+	aes.end.second = y + sin(wector.direction) * draw_mag;
+
+	aes.color = color;
+
+	return aes;
+
+// todo add text shit into aes struct
 }
 
 GLuint load_shader(std::string vs_filename, std::string fs_filename)
@@ -361,4 +628,18 @@ std::string get_file_str(std::string file)
 	std::string s((std::istreambuf_iterator<char>(f)),
 		      (std::istreambuf_iterator<char>()));
 	return s;
+}
+
+void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp)
+{
+	glUseProgram(shader);
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, vs.size() * sizeof(float), &vs[0], GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	glDrawArrays(primitive, 0, indices);
+	glUniformMatrix4fv(mvp_l, 1, GL_FALSE, &mvp[0][0]);
 }

@@ -28,34 +28,30 @@ def main():
     fill = True
 
     fpsclock = pygame.time.Clock()
-    fps_desired = 25
-    l.maintain_axle(l.CENT)
+    fps_desired = 60
+    #l.maintain_axle(l.CENT)
 
+    print(l.rightmostpoint.horz)
     l.apply_force(Force(100, rad(270)), l.rightmostpoint.horz)
-
+    print(l.angular_acceleration)
+    print(l.angular_speed)
+    l.tick();
+    print(l)
+    i = 0
     while True:
+        i += 1
         display.fill(BLACK)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit()
 
-        l.apply_force(Force(g_accel * l.mass, rad(270)), 0)
 
 
 
         l.tick()
-
-        if l.rightmostpoint.y <= ground_y:
-            l.angular_speed = 0
-            l.axle.velocity = Velocity(0, 0)
-            l.apply_force(Force(l.mass * l.rightmostpoint.velocity.magnitude, rad(90)), l.rightmostpoint.horz)
-
-        if l.leftmostpoint.y <= ground_y:
-            l.angular_speed = 0
-            l.axle.velocity = Velocity(0, 0)
-            l.apply_force(Force(l.mass * l.leftmostpoint.velocity.magnitude, rad(90)), l.leftmostpoint.horz)
-
+        print(i)
+        if i == 100: return -1;
 
         l.draw()
 

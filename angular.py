@@ -54,6 +54,7 @@ def main():
 
     init_axle_x = 50
     init_axle_y = ground_y - wheel_radius * 2
+    print(init_axle_y);
     axle = axle__(init_axle_x, init_axle_y, 10)
     length = 250
     wheels_horz_d = 50
@@ -179,9 +180,9 @@ def main():
         pygame.draw.rect(display, BLACK, ((0, 0, stage_width, stage_height)))
         pygame.draw.rect(display, KINDADARKGREY, ((0, 0 + stage_height, D_WIDTH - (D_WIDTH - stage_width), D_HEIGHT - (D_HEIGHT - stage_height))))
 
-        draw_text(f't={t}', 100, 100)
-        draw_text(f'Recording: {recording}', 100, 80)
-        draw_text(f'Playing: {playing}, {currently_playing}', 100, 60)
+        #draw_text(f't={t}', 100, 100)
+        #draw_text(f'Recording: {recording}', 100, 80)
+        #draw_text(f'Playing: {playing}, {currently_playing}', 100, 60)
 
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -449,7 +450,7 @@ def main():
         ), wheel_radius, width=1)
         # rad(15 deg) is magic number
 
-        draw_text(f'fps={fps_desired}', 100, 140)
+        #draw_text(f'fps={fps_desired}', 100, 140)
 
         pygame.draw.rect(display, DARKGREY, ((stage_width, 0, 1000, 1000)))
 
@@ -568,7 +569,7 @@ def main():
         fpsclock.tick(fps_desired)
 
         if pausing_this_frm:
-            draw_text('Paused', 200, 80)
+            #draw_text('Paused', 200, 80)
             pygame.display.update()
             pause()
 
