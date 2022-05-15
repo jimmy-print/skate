@@ -71,10 +71,12 @@ class tolstoj:
         self.i = None
 
     def do(self):
+        #        return i'm pretty sure tolstoj is fucking useless
         self.cond = True
         self.i = 0
 
     def iter(self):
+        #       return 
         try:
             if self.i < self.loops:
                 self.cond = True

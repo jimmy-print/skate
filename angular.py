@@ -54,7 +54,8 @@ def main():
 
     init_axle_x = 50
     init_axle_y = ground_y - wheel_radius * 2
-    print(init_axle_y);
+    print(init_axle_y)
+
     axle = axle__(init_axle_x, init_axle_y, 10)
     length = 250
     wheels_horz_d = 50
@@ -189,6 +190,7 @@ def main():
 
         if recording:
             pygame.draw.rect(display, WHITE, ((t + 220, 0 + stage_height, 1, D_HEIGHT - (D_HEIGHT - stage_height))))
+        print(D_HEIGHT - stage_height);
         draw_text(f'Push down left side (z)', 10, D_HEIGHT - (D_HEIGHT - stage_height))
         draw_text(f'Push down right side (c)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 1 * each_bar_height)
         draw_text(f'Pop left side (shift+z)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 2 * each_bar_height)
@@ -275,6 +277,10 @@ def main():
                     l.apply_force(Force(4000, rad(270)), l.leftmostpoint.horz)
 
                     left_pop.do()
+
+
+
+                    
                 elif current_dat[t][1]['right_push']:
                     if skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius,
                                                                 ground_y):

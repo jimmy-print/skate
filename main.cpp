@@ -10,19 +10,30 @@
 #include <string>
 #include <stdexcept>
 #include <numeric>
+#include <map>
 
 #include <stdio.h>
 #include <math.h>
+#include <utils.h>
+#include <text.h>
+
+// todo fix naming with horz, horzd, horz_d
 
 const std::string LEFT = "LEFT";
 const std::string CENT = "CENT";
 const std::string RIGH = "RIGH";
+
+const std::string LEFTWHEEL = "LEFTWHEEL";
+const std::string RIGHTWHEEL = "RIGHTWHEEL";
 
 
 std::vector<struct aes_wector> wectors_aess;
 
 const int stage_width = 1300;
 const int stage_height = 600;
+
+const float g_accel = 0.4;
+float wheel_radius = 12;
 
 struct color {
 	float r;
@@ -46,26 +57,13 @@ void print_array(std::vector<float> v)
 template <typename T>
 struct aes_wector calc_wector_data_struct(T wector, float x, float y, color color, float display_multiply_factor);
 
-template<typename ... Args>
-std::string string_format( const std::string& format, Args ... args )
-{
-	int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
-	if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
-	auto size = static_cast<size_t>( size_s );
-	auto buf = std::make_unique<char[]>( size );
-	std::snprintf( buf.get(), size, format.c_str(), args ... );
-	return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
-}
-
 void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp);
 
-const int D_WIDTH = 1500;
-const int D_HEIGHT = 700;
 
 color BLACK = {0.1, 0.1, 0.1};
 color WHITE = {1, 1, 1};
 color RED = {1, 0, 0};
-color GREEN = {0, 1, 0};
+color GREEN = {0, 1, };
 color BLUE = {0, 0, 1};
 
 std::string get_file_str(std::string file);
@@ -78,6 +76,10 @@ float rad(float degangle) {
 
 float deg(float radangle) {
 	return radangle * 180 / M_PI;
+}
+
+bool close(float n, float m, float min_diff=3) {
+	return abs(n - m) <= min_diff;
 }
 
 class Wector {
@@ -123,9 +125,9 @@ T recombine(float x_mag, float y_mag) {
 // may be broken... don't use
 	float hypo = sqrt(x_mag * x_mag + y_mag * y_mag);
 	if (hypo != 0) {
-	    return T(hypo, acos(x_mag / hypo));
+		return T(hypo, acos(x_mag / hypo));
 	} else {
-	    return T(hypo, 0);
+		return T(hypo, 0);
 	}
 }
 
@@ -223,7 +225,7 @@ Force get_net_force(std::vector<Force> forces) {
 	}
 	return tmp_f;
 }
-
+//
 class PointMass {
 public:
 	float x;
@@ -304,21 +306,21 @@ public:
 		// todo assert all same points.ys
 		// todo assert all diff points.xs
 
-        points = pointsp;
+		points = pointsp;
 
-        PointMassOnLine* smallest = points[0];
-        for (auto point : points) {
-            if (point->x < smallest->x) {
-                smallest = point;
-            }
-        }
+		PointMassOnLine* smallest = points[0];
+		for (auto point : points) {
+			if (point->x < smallest->x) {
+				smallest = point;
+			}
+		}
 		leftmost = smallest;
 		PointMassOnLine* largest = points[0];
-        for (auto point : points) {
-            if (point->x > smallest->x) {
-                largest = point;
-            }
-        }
+		for (auto point : points) {
+			if (point->x > smallest->x) {
+				largest = point;
+			}
+		}
 		rightmost = largest;
 
 		angle_r = 0;
@@ -328,6 +330,7 @@ public:
 		rotational_inertia = std::accumulate(points.begin(), points.end(), 0.0, [&](float x, PointMassOnLine* y) {return x + y->rotational_inertia;});
 		mass = std::accumulate(points.begin(), points.end(), 0.0,  [&](float x, PointMassOnLine* y) {return x + y->mass;});
 		axle_loc = LEFT;
+
 	}
 
 	void apply_force(Force force, int distance_from_axle_on_line, color color) {
@@ -365,11 +368,11 @@ public:
 			}
 			point->rot_velocity_ptr = &point->v;
 
-		    wectors_aess.push_back(calc_wector_data_struct(point->v, point->x, point->y, WHITE, 20));
-            wectors_aess.push_back(calc_wector_data_struct(axle->v, axle->x, axle->y, RED, 20));
-            std::cout << "point velocity::magnitude: " << point->v.magnitude << " ,direction: " << deg(point->v.direction) << "\n";
+			wectors_aess.push_back(calc_wector_data_struct(point->v, point->x, point->y, WHITE, 20));
+			wectors_aess.push_back(calc_wector_data_struct(axle->v, axle->x, axle->y, RED, 20));
+
 			Velocity v = get_net_vector<Velocity>(point->v, axle->v);
-             wectors_aess.push_back(calc_wector_data_struct(v, point->x, point->y, GREEN, 20));
+			wectors_aess.push_back(calc_wector_data_struct(v, point->x, point->y, GREEN, 20));
 			if (axle->v.magnitude != 0) {
 				// draw vector
 			}
@@ -391,15 +394,113 @@ public:
 		draw_poly(shader, VAO, VBO, rightmostvs, GL_POINTS, 1, mvp_l, mvp);
 		draw_poly(shader, VAO, VBO, axlevs, GL_POINTS, 1, mvp_l, mvp);
 
-        draw_poly(shader, VAO, VBO, {
-            leftmost->x, leftmost->y, 1.0, 1.0, 1.0, 1.0,
-            axle->x, axle->y, 1.0, 1.0, 1.0, 1.0}, GL_LINES, 2, mvp_l, mvp);
+		draw_poly(shader, VAO, VBO, {
+				leftmost->x, leftmost->y, 1.0, 1.0, 1.0, 1.0,
+				axle->x, axle->y, 1.0, 1.0, 1.0, 1.0}, GL_LINES, 2, mvp_l, mvp);
 
-        draw_poly(shader, VAO, VBO, {
-            rightmost->x, rightmost->y, 1.0, 1.0, 1.0, 1.0,
-            axle->x, axle->y, 1.0, 1.0, 1.0, 1.0}, GL_LINES, 2, mvp_l, mvp);
+		draw_poly(shader, VAO, VBO, {
+				rightmost->x, rightmost->y, 1.0, 1.0, 1.0, 1.0,
+				axle->x, axle->y, 1.0, 1.0, 1.0, 1.0}, GL_LINES, 2, mvp_l, mvp);
 	}
+
+	void maintain_axle(std::string new_axle_loc) {
+		if (new_axle_loc == axle_loc) {
+			return;
+		}
+
+		axle_loc = new_axle_loc;
+
+		if (axle_loc == CENT) {
+			axle->x = leftmost->x + cos(angle_r) * length / 2;
+			axle->y = leftmost->y + sin(angle_r) * length / 2;
+
+			// todo rm these repetitions
+			leftmost->horzd = -1 * length / 2;
+			leftmost->rotational_inertia = leftmost->mass * pow(leftmost->horzd, 2);
+			leftmost->x = axle->x + leftmost->horzd;
+			leftmost->y = axle->y;
+			leftmost->mass = leftmost->mass;
+
+			rightmost->horzd = length / 2;
+			rightmost->rotational_inertia = rightmost->mass * pow(rightmost->horzd, 2);
+			leftmost->x = axle->x + rightmost->horzd;
+			leftmost->y = axle->y;
+			leftmost->mass = rightmost->mass;
+		} else if (axle_loc == LEFT) {
+			axle->x = leftmost->x + cos(angle_r) * wheels_horz_d;
+			axle->y = leftmost->y + sin(angle_r) * wheels_horz_d;
+
+			leftmost->horzd = -1 * wheels_horz_d;
+			leftmost->rotational_inertia = leftmost->mass * pow(leftmost->horzd, 2);
+			leftmost->x = axle->x + leftmost->horzd;
+			leftmost->y = axle->y;
+			leftmost->mass = leftmost->mass;
+
+			rightmost->horzd = length - wheels_horz_d;
+			rightmost->rotational_inertia = rightmost->mass * pow(rightmost->horzd, 2);
+			leftmost->x = axle->x + rightmost->horzd;
+			leftmost->y = axle->y;
+			leftmost->mass = rightmost->mass;
+
+		} else if (axle_loc == RIGH) {
+			axle->x = leftmost->x + cos(angle_r) * (length - wheels_horz_d);
+			axle->y = leftmost->y + sin(angle_r) * (length - wheels_horz_d);
+
+			leftmost->horzd = -(length - wheels_horz_d);
+			leftmost->rotational_inertia = leftmost->mass * pow(leftmost->horzd, 2);
+			leftmost->x = axle->x + leftmost->horzd;
+			leftmost->y = axle->y;
+			leftmost->mass = leftmost->mass;
+
+			rightmost->horzd = wheels_horz_d;
+			rightmost->rotational_inertia = rightmost->mass * pow(rightmost->horzd, 2);
+			leftmost->x = axle->x + rightmost->horzd;
+			leftmost->y = axle->y;
+			leftmost->mass = rightmost->mass;
+		}
+
+		leftmost->x = axle->x + cos(angle_r) * leftmost->horzd;
+		leftmost->y = axle->y + sin(angle_r) * leftmost->horzd;
+
+		rightmost->x = axle->x + cos(angle_r) * rightmost->horzd;
+		rightmost->y = axle->y + sin(angle_r) * rightmost->horzd;
+
+		points = {leftmost, rightmost};
+                rotational_inertia = std::accumulate(points.begin(), points.end(), 0.0, [&](float x, PointMassOnLine* y) {return x + y->rotational_inertia;});
+	}
+
+	void sticky() {
+		angular_speed_r *= 0.7;
+   	}
+
+   	void raise_uniformwise(float dy) {
+		for (auto point : points) {
+			point->y += dy;
+		}
+		axle->y += dy;
+   	}
+
+   	void push_left_uniformwise(float dx) {
+		// the += and left seems to be wrong (after translating from python)
+		// but just keep it for now, because changing these things during translation is probably
+		// more complexity for no immediate gain
+		for (auto point : points) {
+			point->x += dx;
+		}
+		axle->x += dx;
+   	}
 };
+
+bool skateboard_is_in_contact_with_ground(
+        float left_wheel_center_y, float right_wheel_center_y,
+        float radius_of_both_wheels, float ground_y) {
+	if (left_wheel_center_y - radius_of_both_wheels <= ground_y) {
+		return true;
+	} else if (right_wheel_center_y - radius_of_both_wheels <= ground_y) {
+		return true;
+	}
+	return false;
+}
 
 int main()
 {
@@ -417,26 +518,22 @@ int main()
 #endif
 	glewInit();
 
+    std::map<char, glyph> glyphs = init_glyphs("inconsolata.ttf");
+    configure_blending();
+    GLuint text_VAO, text_VBO;
+    get_vao_vbo(&text_VAO, &text_VBO);
+    glm::mat4 text_mvp = get_mvp();
+    GLuint text_shader;
+    GLuint text_mvp_l, text_color_l;
+    get_shader("text_vs", "text_fs", &text_shader, &text_mvp_l, &text_color_l);
+//    void dtext()
+
+
 	glm::mat4 projection_m = glm::ortho(0.0f, (float) D_WIDTH, 0.0f, (float) D_HEIGHT);
 	glm::vec3 position_v = glm::vec3(0, 0, 1);
 	glm::mat4 view_m = glm::lookAt(position_v, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 	glm::mat4 model_m = glm::mat4(1.0f);
 	glm::mat4 mvp_m = projection_m * view_m * model_m;
-
-	PointMass p(10, 10, 1);
-
-	GLuint pvao, pvbo;
-	glGenVertexArrays(1, &pvao);
-	glBindVertexArray(pvao);
-	glGenBuffers(1, &pvbo);
-	glBindBuffer(GL_ARRAY_BUFFER, pvbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(p.get_vs()), &p.get_vs()[0], GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
-	glEnableVertexAttribArray(0);
-	GLuint polygon_s = load_shader("polygon_vs", "polygon_fs");
-	GLuint polygon_color_l = glGetUniformLocation(polygon_s, "color_l");
-	GLuint polygon_mvp_l = glGetUniformLocation(polygon_s, "mvp_l");
-
 
 	GLuint wectors_vao, wectors_vbo;
 	glGenVertexArrays(1, &wectors_vao);
@@ -450,17 +547,20 @@ int main()
 	GLuint wectors_mvp_l = glGetUniformLocation(wectors_s, "mvp_l");
 
 
-	float wheel_radius = 12;
 
-	float init_axle_x = 100;
-	float init_axle_y = 500;
+	float ground_y = 50 + (D_HEIGHT - stage_height);
+
+	float init_axle_x = 50;
+	float init_axle_y = ground_y + wheel_radius * 5;
 	PointMass axle(init_axle_x, init_axle_y, 10);
-	float length = 300;
+	float length = 250;
 	float wheels_horz_d = 50;
 	PointMassOnLine leftmost(axle, length - wheels_horz_d, 20); // wtf why does this have to be a variable???? or else you get different values inside the class constructor for line when passed as a ptr..
 	PointMassOnLine rightmost(axle, -wheels_horz_d, 20);
-    std::vector<PointMassOnLine*> points = {&leftmost, &rightmost};
+	std::vector<PointMassOnLine*> points = {&leftmost, &rightmost};
 	Line l(&axle, points, wheels_horz_d, length);
+
+	float total_horz = abs(l.leftmost->horzd) + l.rightmost->horzd;
 
 	GLuint poly_VAO, poly_VBO;
 	glGenVertexArrays(1, &poly_VAO);
@@ -469,13 +569,23 @@ int main()
 	GLuint poly_mvp_l = glGetUniformLocation(poly_shader, "mvp");
 	glPointSize(5);
 
+	int i = 0;
 
-    l.apply_force(Force(100.0, rad(270)), l.rightmost->horzd, WHITE);
-    l.tick();
-    int i = 0;
+	bool pausing_this_frm;
+
+	double mouse_x, mouse_y;
+
+#define DTEXT(text, x, y, scale, r, g, b) \
+do {									  \
+	draw_text(text, x, y, scale, r, g, b, glyphs, text_VAO, text_VBO, text_mvp, text_shader, text_mvp_l, text_color_l); \
+} while (0)
+
+	float recording_area_height = D_HEIGHT - stage_height;
+	int num_of_actions = 6;
+	float each_bar_height = recording_area_height / num_of_actions;
 
 	while (!glfwWindowShouldClose(window)) {
-	    i++;
+		i++;
 		glClearColor(BLACK.r, BLACK.g, BLACK.b, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -483,18 +593,73 @@ int main()
 
 		wectors_aess = {};
 
-        l.apply_force(Force(1, rad(0)), 0, BLUE);
+
+		pausing_this_frm = false;
+
+		glfwGetCursorPos(window, &mouse_x, &mouse_y);
+
+		std::cout << D_HEIGHT - stage_height << "\n";
+		DTEXT("Push down left side (z)", 10, D_HEIGHT - stage_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Push down right side (c)", 10, D_HEIGHT - stage_height - 1 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Pop left side (shift+z)", 10, D_HEIGHT - stage_height - 2 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Pop right side (shift+c)", 10, D_HEIGHT - stage_height - 3 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Move left (a)", 10, D_HEIGHT - stage_height - 4 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Move left (d)", 10, D_HEIGHT - stage_height - 5 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+
+
+		l.apply_force(Force(g_accel * l.mass, rad(270)), 0, WHITE);
+		float center_x = l.leftmost->x + cos(l.angle_r - rad(15)) * wheels_horz_d;
+		float center_y = (l.leftmost->y + sin(l.angle_r - rad(15)) * wheels_horz_d);
+		float left_wheel_center_y = center_y;
+		float right_wheel_center_y = (center_y + sin(l.angle_r) * (total_horz - wheels_horz_d * 2));
+		float left_wheel_center_x = center_x;
+		float right_wheel_center_x = (center_x + cos(l.angle_r) * (total_horz - wheels_horz_d * 2));
+
+		float left_wheel_base_y = left_wheel_center_y - wheel_radius;
+		// no LEFTWHEEL or RIGHTWHEEL
+		float right_wheel_base_y = right_wheel_center_y - wheel_radius;
+		if (skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius, ground_y)) {
+			l.apply_force(Force(g_accel * l.mass, rad(90)), 0, WHITE);
+
+
+			float x_component = get_xy_components(l.axle->v).first;
+			if (x_component > 0) {
+				l.axle->v = Velocity(x_component, 0);
+			} else if (x_component < 0) {
+				l.axle->v = Velocity(abs(x_component), rad(180));
+			} else if (x_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+
+			if (!close(deg(l.angle_r), 0, 1.3)) {
+				l.apply_force(Force(g_accel * l.leftmost->mass, rad(270)), l.leftmost->horzd, WHITE);
+				l.apply_force(Force(g_accel * l.rightmost->mass, rad(270)), l.rightmost->horzd, WHITE);
+			} else {
+				l.sticky();
+			}
+
+			if (std::min(left_wheel_base_y, right_wheel_base_y) == left_wheel_base_y) {
+				l.maintain_axle(LEFT);
+			} else if (std::min(left_wheel_base_y, right_wheel_base_y) == right_wheel_base_y) {
+				l.maintain_axle(RIGH);
+			}
+
+			float d = ground_y - std::min(left_wheel_base_y, right_wheel_base_y);
+			l.raise_uniformwise(d - 1);
+
+		}
+
 		l.tick();
 		l.draw(poly_shader, poly_VAO, poly_VBO, poly_mvp_l, mvp_m);
 
-		p.reset();
-		p.add_force(Force(0.01, 0));
-		p.add_force(Force(0.01, rad(90)));
-		p.tick();
 
-		wectors_aess.push_back(calc_wector_data_struct(p.v, p.x, p.y, WHITE, 20));
-		wectors_aess.push_back(calc_wector_data_struct(Force(0.01, 0), p.x, p.y, RED, 1000));
-		wectors_aess.push_back(calc_wector_data_struct(Force(0.01, rad(90)), p.x, p.y, RED, 1000));
+
+		std::vector<float> ground_vs = {
+			0, ground_y, 1.0, 1.0, 1.0, 1.0,
+			D_WIDTH, ground_y, 1.0, 1.0, 1.0, 1.0};
+		draw_poly(poly_shader, poly_VAO, poly_VBO, ground_vs, GL_LINES, 2, poly_mvp_l, mvp_m);
+
+
 
 		std::vector<float> wectors_dat;
 		for (auto struc : wectors_aess) {
@@ -524,13 +689,6 @@ int main()
 		glDrawArrays(GL_LINES, 0, wectors_aess.size() * 2);
 		glUniformMatrix4fv(wectors_mvp_l, 1, GL_FALSE, &mvp_m[0][0]);
 
-		glUseProgram(polygon_s);
-		glBindVertexArray(pvao);
-		glBindBuffer(GL_ARRAY_BUFFER, pvbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(p.get_vs()), &p.get_vs()[0], GL_STATIC_DRAW);
-		glDrawArrays(GL_POINTS, 0, 1);
-		glUniform3f(polygon_color_l, GREEN.r, GREEN.g, GREEN.b);
-		glUniformMatrix4fv(polygon_mvp_l, 1, GL_FALSE, &mvp_m[0][0]);
 
 		glfwSwapBuffers(window);
 	}
