@@ -47,7 +47,8 @@ def main():
                 quit()
 
 
-
+        l.apply_force(Force(10, rad(90)), 0)
+        l.apply_force(Force(100, rad(270)), l.rightmostpoint.horz)
 
         l.tick()
         print(i)

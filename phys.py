@@ -259,9 +259,7 @@ class line:
             dv = Velocity(force.magnitude / self.mass, force.direction)
             self.axle.velocity = get_net_vector(self.axle.velocity, dv)
         else:
-            print(f'\t{force.magnitude} {distance_from_axle_on_line} {force.direction} {self.angle}')
             torque = force.magnitude * distance_from_axle_on_line * sin(force.direction - self.angle)
-            print(f'\t{torque}')
             self.angular_acceleration = torque / self.rotational_inertia
             self.angular_speed += self.angular_acceleration
 
@@ -298,12 +296,9 @@ class line:
                         display_multiply_factor=10) if point.velocity.magnitude != 0 else None
             draw_vector(self.axle.velocity, point.x, point.y, color=YELLOW,
                         display_multiply_factor=10) if self.axle.velocity.magnitude != 0 else None
-            print(point.velocity)
-            print(self.axle.velocity)
             v = get_net_vector(point.velocity, self.axle.velocity)
             if self.axle.velocity.magnitude != 0:
                 draw_vector(v, point.x, point.y, RED, display_multiply_factor=10)
-            print('\t\t', v)
             point.velocity = v
             point.tick()
         draw_vector(self.axle.velocity, self.axle.x, self.axle.y, color=YELLOW,
