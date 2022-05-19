@@ -60,11 +60,16 @@ struct aes_wector calc_wector_data_struct(T wector, float x, float y, color colo
 void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp);
 
 
-color BLACK = {0.1, 0.1, 0.1};
+color BLACK = {0, 0, 0};
 color WHITE = {1, 1, 1};
 color RED = {1, 0, 0};
 color GREEN = {0, 1, };
 color BLUE = {0, 0, 1};
+
+color rgb_py_to_gl(float r, float g, float b) {
+	return (color) {r / 255, g / 255, b / 255};
+}
+color DARKGREY = rgb_py_to_gl(25, 25, 25);
 
 std::string get_file_str(std::string file);
 
@@ -502,8 +507,37 @@ bool skateboard_is_in_contact_with_ground(
 	return false;
 }
 
-int main()
-{
+
+std::map<char, bool> perrier;
+std::vector<char> perrier_implemented_keys = {'d', 'a'};  // there's no mechanism to guarantee that these are the keys
+// that are actually implemented in the below key_callback function or in the main game loop.
+// This is only for the reset function.
+
+void reset_perrier() {
+	// goes at the beginning of the game loop, before glfwPollEvents();.
+	for (auto key : perrier_implemented_keys) {
+		perrier[key] = false;
+	}
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+	if (action == GLFW_PRESS) {
+		switch(key) {
+		
+		case GLFW_KEY_D:
+			perrier['d'] = true;
+			break;
+		case GLFW_KEY_A:
+			perrier['a'] = true;
+			break;
+
+
+		}
+	}
+}
+
+
+int main() {
 	glfwInit();
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -517,6 +551,8 @@ int main()
 	glewExperimental = GL_TRUE;
 #endif
 	glewInit();
+	
+	glfwSetKeyCallback(window, key_callback);
 
     std::map<char, glyph> glyphs = init_glyphs("inconsolata.ttf");
     configure_blending();
@@ -589,6 +625,8 @@ do {									  \
 		glClearColor(BLACK.r, BLACK.g, BLACK.b, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		reset_perrier();
+
 		glfwPollEvents();
 
 		wectors_aess = {};
@@ -598,13 +636,34 @@ do {									  \
 
 		glfwGetCursorPos(window, &mouse_x, &mouse_y);
 
-		std::cout << D_HEIGHT - stage_height << "\n";
+
+		/*
+		int state = glfwGetKey(window, GLFW_KEY_D);
+		if (state == GLFW_PRESS) {
+			std::cout << "D pressed type2\n";
+		}
+		*/
+		if (perrier['d']) {
+			l.apply_force(Force(100, rad(0)), 0, WHITE);
+		}
+		if (perrier['a']) {
+			l.apply_force(Force(-100, rad(0)), 0, WHITE);
+		}
+
+
 		DTEXT("Push down left side (z)", 10, D_HEIGHT - stage_height, 1.0, 1.0, 1.0, 1.0);
 		DTEXT("Push down right side (c)", 10, D_HEIGHT - stage_height - 1 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
 		DTEXT("Pop left side (shift+z)", 10, D_HEIGHT - stage_height - 2 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
 		DTEXT("Pop right side (shift+c)", 10, D_HEIGHT - stage_height - 3 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
 		DTEXT("Move left (a)", 10, D_HEIGHT - stage_height - 4 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
 		DTEXT("Move left (d)", 10, D_HEIGHT - stage_height - 5 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+
+		#define EXP_COLOR(color) \
+		color.r, color.g, color.b, 1.0 
+		
+		// TODO make color struct support transparency and then change this macro
+		// TODO render consistent how color is handled
+
 
 
 		l.apply_force(Force(g_accel * l.mass, rad(270)), 0, WHITE);
@@ -659,6 +718,11 @@ do {									  \
 			D_WIDTH, ground_y, 1.0, 1.0, 1.0, 1.0};
 		draw_poly(poly_shader, poly_VAO, poly_VBO, ground_vs, GL_LINES, 2, poly_mvp_l, mvp_m);
 
+
+		draw_poly(poly_shader, poly_VAO, poly_VBO, {stage_width, 0, EXP_COLOR(DARKGREY),
+													stage_width, D_HEIGHT, EXP_COLOR(DARKGREY),
+													stage_width + (D_WIDTH - stage_width), D_HEIGHT, EXP_COLOR(DARKGREY),
+													stage_width + (D_WIDTH - stage_width), 0, EXP_COLOR(DARKGREY)}, GL_QUADS, 4, poly_mvp_l, mvp_m);
 
 
 		std::vector<float> wectors_dat;

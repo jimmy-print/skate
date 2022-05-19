@@ -190,7 +190,6 @@ def main():
 
         if recording:
             pygame.draw.rect(display, WHITE, ((t + 220, 0 + stage_height, 1, D_HEIGHT - (D_HEIGHT - stage_height))))
-        print(D_HEIGHT - stage_height);
         draw_text(f'Push down left side (z)', 10, D_HEIGHT - (D_HEIGHT - stage_height))
         draw_text(f'Push down right side (c)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 1 * each_bar_height)
         draw_text(f'Pop left side (shift+z)', 10, D_HEIGHT - (D_HEIGHT - stage_height) + 2 * each_bar_height)
