@@ -523,7 +523,7 @@ void reset_perrier() {
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
 		switch(key) {
-		
+
 		case GLFW_KEY_D:
 			perrier['d'] = true;
 			break;
@@ -551,17 +551,17 @@ int main() {
 	glewExperimental = GL_TRUE;
 #endif
 	glewInit();
-	
+
 	glfwSetKeyCallback(window, key_callback);
 
-    std::map<char, glyph> glyphs = init_glyphs("inconsolata.ttf");
-    configure_blending();
-    GLuint text_VAO, text_VBO;
-    get_vao_vbo(&text_VAO, &text_VBO);
-    glm::mat4 text_mvp = get_mvp();
-    GLuint text_shader;
-    GLuint text_mvp_l, text_color_l;
-    get_shader("text_vs", "text_fs", &text_shader, &text_mvp_l, &text_color_l);
+	std::map<char, glyph> glyphs = init_glyphs("inconsolata.ttf");
+	configure_blending();
+	GLuint text_VAO, text_VBO;
+	get_vao_vbo(&text_VAO, &text_VBO);
+	glm::mat4 text_mvp = get_mvp();
+	GLuint text_shader;
+	GLuint text_mvp_l, text_color_l;
+	get_shader("text_vs", "text_fs", &text_shader, &text_mvp_l, &text_color_l);
 //    void dtext()
 
 
@@ -611,10 +611,10 @@ int main() {
 
 	double mouse_x, mouse_y;
 
-#define DTEXT(text, x, y, scale, r, g, b) \
-do {									  \
-	draw_text(text, x, y, scale, r, g, b, glyphs, text_VAO, text_VBO, text_mvp, text_shader, text_mvp_l, text_color_l); \
-} while (0)
+#define DTEXT(text, x, y, scale, r, g, b)				\
+	do {								\
+		draw_text(text, x, y, scale, r, g, b, glyphs, text_VAO, text_VBO, text_mvp, text_shader, text_mvp_l, text_color_l); \
+	} while (0)
 
 	float recording_area_height = D_HEIGHT - stage_height;
 	int num_of_actions = 6;
@@ -638,10 +638,10 @@ do {									  \
 
 
 		/*
-		int state = glfwGetKey(window, GLFW_KEY_D);
-		if (state == GLFW_PRESS) {
-			std::cout << "D pressed type2\n";
-		}
+		  int state = glfwGetKey(window, GLFW_KEY_D);
+		  if (state == GLFW_PRESS) {
+		  std::cout << "D pressed type2\n";
+		  }
 		*/
 		if (perrier['d']) {
 			l.apply_force(Force(100, rad(0)), 0, WHITE);
@@ -658,9 +658,9 @@ do {									  \
 		DTEXT("Move left (a)", 10, D_HEIGHT - stage_height - 4 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
 		DTEXT("Move left (d)", 10, D_HEIGHT - stage_height - 5 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
 
-		#define EXP_COLOR(color) \
-		color.r, color.g, color.b, 1.0 
-		
+#define EXP_COLOR(color)			\
+		color.r, color.g, color.b, 1.0
+
 		// TODO make color struct support transparency and then change this macro
 		// TODO render consistent how color is handled
 
@@ -720,9 +720,9 @@ do {									  \
 
 
 		draw_poly(poly_shader, poly_VAO, poly_VBO, {stage_width, 0, EXP_COLOR(DARKGREY),
-													stage_width, D_HEIGHT, EXP_COLOR(DARKGREY),
-													stage_width + (D_WIDTH - stage_width), D_HEIGHT, EXP_COLOR(DARKGREY),
-													stage_width + (D_WIDTH - stage_width), 0, EXP_COLOR(DARKGREY)}, GL_QUADS, 4, poly_mvp_l, mvp_m);
+							    stage_width, D_HEIGHT, EXP_COLOR(DARKGREY),
+							    stage_width + (D_WIDTH - stage_width), D_HEIGHT, EXP_COLOR(DARKGREY),
+							    stage_width + (D_WIDTH - stage_width), 0, EXP_COLOR(DARKGREY)}, GL_QUADS, 4, poly_mvp_l, mvp_m);
 
 
 		std::vector<float> wectors_dat;
