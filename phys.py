@@ -211,6 +211,50 @@ class point_mass_on_line(point_mass):
 
 
 class line:
+    def __init__(self, center_mass: point_mass, total_length: int):
+        self.total_length = total_length
+        self.center_mass = center_mass
+
+        self.angle = 0
+        self.angular_acceleration = 0
+        self.angular_velocity = 0
+
+        self.rotational_inertia = (1/12)*center_mass.mass*(total_length**2)
+        self.mass = center_mass.mass
+
+    def draw(self):
+        leftpointx = self.center_mass.x - cos(self.angle) * (self.total_length/2)
+        leftpointy = self.center_mass.y - sin(self.angle) * (self.total_length/2)
+
+        rightpointx = self.center_mass.x + cos(self.angle) * (self.total_length/2)
+        rightpointy = self.center_mass.y + sin(self.angle) * (self.total_length/2)
+        pygame.draw.line(display, WHITE, (leftpointx, D_HEIGHT - leftpointy), (rightpointx, D_HEIGHT - rightpointy))
+
+        pygame.draw.rect(display, GREEN, (self.center_mass.x, D_HEIGHT - self.center_mass.y, 4, 4))
+
+    def apply_force(self, force: Force, distance_from_com: int, color=WHITE):
+        draw_vector(
+            force,
+            self.center_mass.x + cos(self.angle) * distance_from_com,
+            self.center_mass.y + sin(self.angle) * distance_from_com,
+            color=color,
+            display_multiply_factor=20)
+
+        if distance_from_com == 0:  # if force is applied to the center of mass
+            dv = Velocity(force.magnitude / self.mass, force.direction)
+            self.center_mass.velocity = get_net_vector(self.center_mass.velocity, dv)
+        else:
+            torque = force.magnitude * distance_from_com * sin(force.direction - self.angle)
+            self.angular_acceleration = torque / self.rotational_inertia
+            self.angular_velocity += self.angular_acceleration
+
+    def tick(self):
+        self.angle += self.angular_velocity
+        if deg(self.angle) > 360:
+            self.angle = rad(deg(self.angle) - 360)
+        self.center_mass.tick()
+
+class skateboardline:
     LEFT = 'LEFT'
     CENT = 'CENT'
     RIGH = 'RIGH'
@@ -243,7 +287,7 @@ class line:
 
         self.mass = sum(point.mass for point in self.points)
 
-        self.axle_loc = line.LEFT
+        self.axle_loc = skateboardline.LEFT
 
     def __repr__(self):
         return f'left: {self.leftmostpoint.x, self.leftmostpoint.y}, right: {self.rightmostpoint.x, self.rightmostpoint.y}'
@@ -334,20 +378,20 @@ class line:
 
         self.axle_loc = axle_loc
 
-        if axle_loc == line.CENT:
+        if axle_loc == skateboardline.CENT:
             self.axle.x = self.leftmostpoint.x + cos(self.angle) * self.length / 2
             self.axle.y = self.leftmostpoint.y + sin(self.angle) * self.length / 2
 
             self.leftmostpoint = point_mass_on_line(self.axle, -1 * self.length / 2, self.leftmostpoint.mass)
             self.rightmostpoint = point_mass_on_line(self.axle, self.length / 2, self.rightmostpoint.mass)
-        elif axle_loc == line.LEFT:
+        elif axle_loc == skateboardline.LEFT:
             self.axle.x = self.leftmostpoint.x + cos(self.angle) * self.wheels_horz_d
             self.axle.y = self.leftmostpoint.y + sin(self.angle) * self.wheels_horz_d
 
             self.leftmostpoint = point_mass_on_line(self.axle, -1 * self.wheels_horz_d, self.leftmostpoint.mass)
             self.rightmostpoint = point_mass_on_line(self.axle, (self.length - self.wheels_horz_d),
                                                      self.rightmostpoint.mass)
-        elif axle_loc == line.RIGH:
+        elif axle_loc == skateboardline.RIGH:
             self.axle.x = self.leftmostpoint.x + cos(self.angle) * (self.length - self.wheels_horz_d)
             self.axle.y = self.leftmostpoint.y + sin(self.angle) * (self.length - self.wheels_horz_d)
 

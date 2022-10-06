@@ -40,7 +40,6 @@ def draw_available_files(currently_playing, playing):
         else:
             pygame.draw.rect(display, KINDADARKGREY, r)
 
-
         pygame.draw.polygon(display, GREEN, ((stage_width + 20 + 5, 300 + i * 40 + 5), (stage_width + 20 + 5, 300 + i * 40 + 30 - 5), (stage_width + 20 + 30 - 5, 300 + i * 40 + 15)))
 
     if playing:
@@ -59,7 +58,7 @@ def main():
     axle = axle__(init_axle_x, init_axle_y, 10)
     length = 250
     wheels_horz_d = 50
-    l = line(
+    l = skateboardline(
         axle,
         (
             point_mass_on_line(axle, length - wheels_horz_d, 20),
@@ -343,7 +342,7 @@ def main():
             wittgensteinpopper = l.leftmostpoint.velocity
             watchtower = l.axle.velocity
 
-            l.maintain_axle(line.CENT)
+            l.maintain_axle(skateboardline.CENT)
             l.angular_speed = 0
             l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0)
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, color=CYAN)
@@ -355,7 +354,7 @@ def main():
             wittgensteinpopper = l.rightmostpoint.velocity
             watchtower = l.axle.velocity
 
-            l.maintain_axle(line.CENT)
+            l.maintain_axle(skateboardline.CENT)
             l.angular_speed = 0
             l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0)
             l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, color=CYAN)
