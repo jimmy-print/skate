@@ -713,6 +713,50 @@ int main() {
 
 
 
+		// Draw wheels here
+		// Series of points
+		glPointSize(5);
+		draw_poly(poly_shader, poly_VAO, poly_VBO, {
+				left_wheel_center_x, left_wheel_center_y, EXP_COLOR(RED)},
+			GL_POINTS, 1, poly_mvp_l, mvp_m);
+		draw_poly(poly_shader, poly_VAO, poly_VBO, {
+				right_wheel_center_x, right_wheel_center_y, EXP_COLOR(GREEN)},
+			GL_POINTS, 1, poly_mvp_l, mvp_m);
+
+		glPointSize(1);
+		std::vector<float> left_wheel_points;
+		std::vector<float> right_wheel_points;
+		float resolution_d = 0.5;
+		float theta_r = 0;
+		for (float deg = 0; deg < 360; deg += resolution_d){
+			theta_r = rad(deg);
+
+			float left_px = left_wheel_center_x + cos(theta_r) * wheel_radius;
+			float left_py = left_wheel_center_y + sin(theta_r) * wheel_radius;
+
+			float right_px = right_wheel_center_x + cos(theta_r) * wheel_radius;
+			float right_py = right_wheel_center_y + sin(theta_r) * wheel_radius;
+
+			left_wheel_points.push_back(left_px);
+			left_wheel_points.push_back(left_py);
+			left_wheel_points.push_back(WHITE.r);
+			left_wheel_points.push_back(WHITE.g);
+			left_wheel_points.push_back(WHITE.b);
+			left_wheel_points.push_back(1.0);
+
+			right_wheel_points.push_back(right_px);
+			right_wheel_points.push_back(right_py);
+			right_wheel_points.push_back(WHITE.r);
+			right_wheel_points.push_back(WHITE.g);
+			right_wheel_points.push_back(WHITE.b);
+			right_wheel_points.push_back(1.0);
+		}
+
+		draw_poly(poly_shader, poly_VAO, poly_VBO, left_wheel_points, GL_POINTS, left_wheel_points.size()/6, poly_mvp_l, mvp_m);
+		draw_poly(poly_shader, poly_VAO, poly_VBO, right_wheel_points, GL_POINTS, right_wheel_points.size()/6, poly_mvp_l, mvp_m);
+
+		glPointSize(5);
+
 		std::vector<float> ground_vs = {
 			0, ground_y, 1.0, 1.0, 1.0, 1.0,
 			D_WIDTH, ground_y, 1.0, 1.0, 1.0, 1.0};
