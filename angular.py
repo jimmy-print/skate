@@ -53,7 +53,6 @@ def main():
 
     init_axle_x = 50
     init_axle_y = ground_y - wheel_radius * 2
-    print(init_axle_y)
 
     axle = axle__(init_axle_x, init_axle_y, 10)
     length = 250
