@@ -41,6 +41,9 @@ struct color {
 	float b;
 } typedef color;
 
+#define EXP_COLOR(color)			\
+	color.r, color.g, color.b, 1.0
+
 struct aes_wector {
 	std::pair<float, float> start;
 	std::pair<float, float> end;
@@ -70,6 +73,8 @@ color rgb_py_to_gl(float r, float g, float b) {
 	return (color) {r / 255, g / 255, b / 255};
 }
 color DARKGREY = rgb_py_to_gl(25, 25, 25);
+color KINDA_DARK_GREY = rgb_py_to_gl(40, 40, 40);
+color CYAN = rgb_py_to_gl(0, 255, 255);
 
 std::string get_file_str(std::string file);
 
@@ -509,7 +514,7 @@ bool skateboard_is_in_contact_with_ground(
 
 
 std::map<char, bool> perrier;
-std::vector<char> perrier_implemented_keys = {'d', 'a'};  // there's no mechanism to guarantee that these are the keys
+std::vector<char> perrier_implemented_keys = {'d', 'a', 'c', 'z'};  // there's no mechanism to guarantee that these are the keys
 // that are actually implemented in the below key_callback function or in the main game loop.
 // This is only for the reset function.
 
@@ -530,8 +535,12 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 		case GLFW_KEY_A:
 			perrier['a'] = true;
 			break;
-
-
+		case GLFW_KEY_C:
+			perrier['c'] = true;
+			break;
+		case GLFW_KEY_Z:
+			perrier['z'] = true;
+			break;
 		}
 	}
 }
@@ -620,6 +629,9 @@ int main() {
 	int num_of_actions = 6;
 	float each_bar_height = recording_area_height / num_of_actions;
 
+	float left_wheel_center_y = 0;
+	float right_wheel_center_y = 0;
+
 	while (!glfwWindowShouldClose(window)) {
 		i++;
 		glClearColor(BLACK.r, BLACK.g, BLACK.b, 1.0);
@@ -636,6 +648,12 @@ int main() {
 
 		glfwGetCursorPos(window, &mouse_x, &mouse_y);
 
+		draw_poly(poly_shader, poly_VAO, poly_VBO, {
+				0, 0 + (D_HEIGHT - stage_height), EXP_COLOR(KINDA_DARK_GREY),
+				0, 0, EXP_COLOR(KINDA_DARK_GREY),
+				D_WIDTH, 0, EXP_COLOR(KINDA_DARK_GREY),
+				D_WIDTH, 0 + (D_HEIGHT - stage_height), EXP_COLOR(KINDA_DARK_GREY)
+			}, GL_QUADS, 4, poly_mvp_l, mvp_m);
 
 		/*
 		  int state = glfwGetKey(window, GLFW_KEY_D);
@@ -643,23 +661,47 @@ int main() {
 		  std::cout << "D pressed type2\n";
 		  }
 		*/
-		if (perrier['d']) {
-			l.apply_force(Force(100, rad(0)), 0, WHITE);
+		if (skateboard_is_in_contact_with_ground(left_wheel_center_y, right_wheel_center_y, wheel_radius, ground_y)) {
+			if (perrier['d']) {
+				l.apply_force(Force(100, rad(0)), 0, WHITE);
+			}
+			if (perrier['a']) {
+				l.apply_force(Force(-100, rad(0)), 0, WHITE);
+			}
 		}
-		if (perrier['a']) {
-			l.apply_force(Force(-100, rad(0)), 0, WHITE);
+
+		bool shift_held = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+
+		if (perrier['c'] && !shift_held) {
+			l.apply_force(Force(150, l.angle_r + rad(270)), l.rightmost->horzd, WHITE);
 		}
 
+		if (perrier['z'] && !shift_held) {
+			l.apply_force(Force(150, l.angle_r + rad(270)), l.leftmost->horzd, WHITE);
+		}
 
-		DTEXT("Push down left side (z)", 10, D_HEIGHT - stage_height, 1.0, 1.0, 1.0, 1.0);
-		DTEXT("Push down right side (c)", 10, D_HEIGHT - stage_height - 1 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
-		DTEXT("Pop left side (shift+z)", 10, D_HEIGHT - stage_height - 2 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
-		DTEXT("Pop right side (shift+c)", 10, D_HEIGHT - stage_height - 3 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
-		DTEXT("Move left (a)", 10, D_HEIGHT - stage_height - 4 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
-		DTEXT("Move left (d)", 10, D_HEIGHT - stage_height - 5 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		if (perrier['c'] && shift_held) {
+			l.maintain_axle(RIGH);
+			l.apply_force(Force(4000, rad(270)), l.rightmost->horzd, WHITE);
+		}
+		if (perrier['z'] && shift_held) {
+			l.maintain_axle(LEFT);
+			l.apply_force(Force(4000, rad(270)), l.leftmost->horzd, WHITE);
+		}
 
-#define EXP_COLOR(color)			\
-		color.r, color.g, color.b, 1.0
+		// when text is rendered with opengl, the coordinates provided are the x y values of the
+		// lower left corner of the text. but in pygame the coordinates provided are the
+		// upper left corner. I've not modified the draw_text function to account for this,
+		// so here I manually add a magic number offset.
+		int offset = 12;
+		DTEXT("Push down left side (z)", 10, D_HEIGHT - (stage_height + offset), 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Push down right side (c)", 10, D_HEIGHT - (stage_height + offset) - 1 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Pop left side (shift+z)", 10, D_HEIGHT - (stage_height + offset) - 2 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Pop right side (shift+c)", 10, D_HEIGHT - (stage_height + offset) - 3 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Move left (a)", 10, D_HEIGHT - (stage_height + offset) - 4 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+		DTEXT("Move left (d)", 10, D_HEIGHT - (stage_height + offset) - 5 * each_bar_height, 1.0, 1.0, 1.0, 1.0);
+
+
 
 		// TODO make color struct support transparency and then change this macro
 		// TODO render consistent how color is handled
@@ -669,8 +711,8 @@ int main() {
 		l.apply_force(Force(g_accel * l.mass, rad(270)), 0, WHITE);
 		float center_x = l.leftmost->x + cos(l.angle_r - rad(15)) * wheels_horz_d;
 		float center_y = (l.leftmost->y + sin(l.angle_r - rad(15)) * wheels_horz_d);
-		float left_wheel_center_y = center_y;
-		float right_wheel_center_y = (center_y + sin(l.angle_r) * (total_horz - wheels_horz_d * 2));
+		left_wheel_center_y = center_y;
+		right_wheel_center_y = (center_y + sin(l.angle_r) * (total_horz - wheels_horz_d * 2));
 		float left_wheel_center_x = center_x;
 		float right_wheel_center_x = (center_x + cos(l.angle_r) * (total_horz - wheels_horz_d * 2));
 
@@ -705,7 +747,112 @@ int main() {
 
 			float d = ground_y - std::min(left_wheel_base_y, right_wheel_base_y);
 			l.raise_uniformwise(d - 1);
+		}
 
+		if (l.leftmost->y < ground_y && l.axle_loc == LEFT && abs(l.angular_speed_r) > 0) {
+			Velocity paradox = l.rightmost->v;
+			Velocity wittgensteinpopper = l.leftmost->v;
+			Velocity watchtower = l.axle->v;
+
+			l.maintain_axle(CENT);
+			l.angular_speed_r = 0;
+			l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0, WHITE);
+			l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, CYAN);
+			l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.rightmost->horzd, WHITE);
+			l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0, WHITE);
+		}
+		if (l.rightmost->y < ground_y && l.axle_loc == RIGH && abs(l.angular_speed_r) > 0) {
+			Velocity paradox = l.leftmost->v;
+			Velocity wittgensteinpopper = l.rightmost->v;
+			Velocity watchtower = l.axle->v;
+
+			l.maintain_axle(CENT);
+			l.angular_speed_r = 0;
+			l.apply_force(Force(wittgensteinpopper.magnitude * l.mass, wittgensteinpopper.direction + rad(180)), 0, WHITE);
+			l.apply_force(Force(watchtower.magnitude * l.mass, watchtower.direction), 0, CYAN);
+			l.apply_force(Force(l.mass * paradox.magnitude / 4, paradox.direction), l.leftmost->horzd, WHITE);
+			l.apply_force(Force(wittgensteinpopper.magnitude * 0.2 * l.mass, rad(90)), 0, WHITE);
+		}
+		if (l.leftmost->y < ground_y && l.axle_loc == CENT && get_xy_components(l.axle->v).second < 0) {
+			float x_component = get_xy_components(l.axle->v).first;
+
+			if (x_component > 0) {
+				l.axle->v = Velocity(x_component, 0);
+			} else if (x_component < 0) {
+				l.axle->v = Velocity(abs(x_component), rad(180));
+			} else if (x_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+			l.apply_force(Force(l.mass * l.leftmost->v.magnitude, rad(90)), l.leftmost->horzd, WHITE);
+			l.raise_uniformwise(ground_y - l.leftmost->y);
+			l.raise_uniformwise(5);
+		}
+		if (l.rightmost->y < ground_y && l.axle_loc == CENT && get_xy_components(l.axle->v).second < 0) {
+			float x_component = get_xy_components(l.axle->v).first;
+
+			if (x_component > 0) {
+				l.axle->v = Velocity(x_component, 0);
+			} else if (x_component < 0) {
+				l.axle->v = Velocity(abs(x_component), rad(180));
+			} else if (x_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+			l.apply_force(Force(l.mass * l.rightmost->v.magnitude, rad(90)), l.rightmost->horzd, WHITE);
+			l.raise_uniformwise(ground_y - l.rightmost->y);
+			l.raise_uniformwise(5);
+		}
+
+		if (l.leftmost->x < 0) {
+			float y_component = get_xy_components(l.axle->v).second;
+
+			if (y_component > 0) {
+				l.axle->v = Velocity(y_component, rad(90));
+			} else if (y_component < 0) {
+				l.axle->v = Velocity(abs(y_component), rad(270));
+			} else if (y_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+			l.apply_force(Force(l.mass * l.leftmost->v.magnitude, rad(0)), l.leftmost->horzd, CYAN);
+			l.push_left_uniformwise(5);
+		}
+		if (l.rightmost->x < 0) {
+			float y_component = get_xy_components(l.axle->v).second;
+
+			if (y_component > 0) {
+				l.axle->v = Velocity(y_component, rad(90));
+			} else if (y_component < 0) {
+				l.axle->v = Velocity(abs(y_component), rad(270));
+			} else if (y_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+			l.apply_force(Force(l.mass * l.rightmost->v.magnitude, rad(0)), l.rightmost->horzd, CYAN);
+			l.push_left_uniformwise(5);
+		}
+		if (l.leftmost->x > stage_width) {
+			float y_component = get_xy_components(l.axle->v).second;
+
+			if (y_component > 0) {
+				l.axle->v = Velocity(y_component, rad(90));
+			} else if (y_component < 0) {
+				l.axle->v = Velocity(abs(y_component), rad(270));
+			} else if (y_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+			l.apply_force(Force(l.mass * l.leftmost->v.magnitude, rad(180)), l.leftmost->horzd, CYAN);
+			l.push_left_uniformwise(-5);
+		}
+		if (l.rightmost->x > stage_width) {
+			float y_component = get_xy_components(l.axle->v).second;
+
+			if (y_component > 0) {
+				l.axle->v = Velocity(y_component, rad(90));
+			} else if (y_component < 0) {
+				l.axle->v = Velocity(abs(y_component), rad(270));
+			} else if (y_component == 0) {
+				l.axle->v = Velocity(0, 0);
+			}
+			l.apply_force(Force(l.mass * l.rightmost->v.magnitude, rad(180)), l.rightmost->horzd, CYAN);
+			l.push_left_uniformwise(-5);
 		}
 
 		l.tick();
@@ -713,8 +860,8 @@ int main() {
 
 
 
-		// Draw wheels here
-		// Series of points
+		// Draw wheels here, as series of points
+		// TODO refactor into draw_circle function
 		glPointSize(5);
 		draw_poly(poly_shader, poly_VAO, poly_VBO, {
 				left_wheel_center_x, left_wheel_center_y, EXP_COLOR(RED)},
@@ -754,8 +901,8 @@ int main() {
 
 		draw_poly(poly_shader, poly_VAO, poly_VBO, left_wheel_points, GL_POINTS, left_wheel_points.size()/6, poly_mvp_l, mvp_m);
 		draw_poly(poly_shader, poly_VAO, poly_VBO, right_wheel_points, GL_POINTS, right_wheel_points.size()/6, poly_mvp_l, mvp_m);
-
 		glPointSize(5);
+
 
 		std::vector<float> ground_vs = {
 			0, ground_y, 1.0, 1.0, 1.0, 1.0,
