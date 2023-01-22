@@ -4,6 +4,9 @@ import utils
 from utils import *
 import pygame
 
+from sympy import Eq, solve
+from sympy.abc import x, y
+
 
 class Vector:  # as in physics, not c++ type of vector
     def __init__(self, magnitude, direction):
@@ -222,6 +225,8 @@ class line:
         self.rotational_inertia = (1/12)*center_mass.mass*(total_length**2)
         self.mass = center_mass.mass
 
+        self.eq = None
+
     def draw(self):
         leftpointx = self.center_mass.x - cos(self.angle) * (self.total_length/2)
         leftpointy = self.center_mass.y - sin(self.angle) * (self.total_length/2)
@@ -253,6 +258,40 @@ class line:
         if deg(self.angle) > 360:
             self.angle = rad(deg(self.angle) - 360)
         self.center_mass.tick()
+
+        rightpointx = self.center_mass.x + cos(self.angle) * (self.total_length/2)
+        rightpointy = self.center_mass.y + sin(self.angle) * (self.total_length/2)
+
+        self.slope = (rightpointy - self.center_mass.y) / (rightpointx - self.center_mass.x)
+        self.intercept = rightpointy - self.slope * rightpointx
+
+        self.eq = lambda x: self.slope * x + self.intercept
+
+    @staticmethod
+    def collide(line1, line2):
+        a = line1.slope - line2.slope
+        b = line1.intercept - line2.intercept
+
+        c = b / a
+        d = -1 * c
+
+        '''
+        sol = solve([Eq(line1.slope*x - y, -line1.intercept),
+                     Eq(line2.slope*x - y, -line2.intercept)])
+        pygame.draw.rect(display, RED, (sol[x], D_HEIGHT - sol[y], 3, 3))
+        '''
+        pygame.draw.rect(display, RED, (d, D_HEIGHT - line1.eq(d), 3, 3))
+        if (min(line1.leftpointx, line1.rightpointx) < d < max(line1.rightpointx, line1.leftpointx)):
+            if (min(line2.leftpointx, line2.rightpointx) < d < max(line2.rightpointx, line2.leftpointx)):
+                return True
+
+    @property
+    def leftpointx(self):
+        return self.center_mass.x - cos(self.angle) * (self.total_length / 2)
+
+    @property
+    def rightpointx(self):
+        return self.center_mass.x + cos(self.angle) * (self.total_length/2)
 
 class skateboardline:
     LEFT = 'LEFT'
