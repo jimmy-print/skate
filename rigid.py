@@ -20,11 +20,14 @@ def main():
 
     j_com = point_mass(x=800, y=250, mass=20)
     j = line(j_com, 300)
-    
+
 
     clock = pygame.time.Clock()
     frm_by_frm = False
+
+    frame = 0
     while True:
+        frame += 1
         display.fill(BLACK)
 
         for event in pygame.event.get():
@@ -38,12 +41,23 @@ def main():
 
         l.tick()
         j.tick()
-        
+
+        l.center_mass.x = pygame.mouse.get_pos()[0]
+
         l.draw()
         j.draw()
 
-        if line.collide(l, j):
-            print('kissing')
+        if 0 < deg(norm(l.angle)) < 180:
+            utils.draw_text("right side up", 1, 1)
+        elif 180 < deg(norm(l.angle)) < 360:
+            utils.draw_text("upside down", 1, 1)
+        else:
+            raise InTheMiddleException
+
+        collide_result = line.collide(l, j)
+        if collide_result:
+            abs_collision_point_x, abs_collision_point_y = collide_result
+            line.docollision(l, j, abs_collision_point_x, abs_collision_point_y)
 
         pygame.display.update()
         clock.tick(fps)

@@ -20,6 +20,9 @@ stage_width, stage_height = 1300, 600
 display = pygame.display.set_mode((D_WIDTH, D_HEIGHT))
 debug = False
 
+右 = '右'
+左 = '左'
+
 pygame.font.init()
 font = pygame.font.Font("inconsolata.ttf", 15)
 
@@ -76,7 +79,7 @@ class tolstoj:
         self.i = 0
 
     def iter(self):
-        #       return 
+        #       return
         try:
             if self.i < self.loops:
                 self.cond = True
@@ -86,6 +89,10 @@ class tolstoj:
                 self.i = None
         except TypeError:
             pass
+
+
+class InTheMiddleException(Exception):
+    pass
 
 
 def in_rect(x, y, rect):

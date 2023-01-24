@@ -236,6 +236,7 @@ class line:
         pygame.draw.line(display, WHITE, (leftpointx, D_HEIGHT - leftpointy), (rightpointx, D_HEIGHT - rightpointy))
 
         pygame.draw.rect(display, GREEN, (self.center_mass.x, D_HEIGHT - self.center_mass.y, 4, 4))
+        pygame.draw.rect(display, RED, (rightpointx, D_HEIGHT - rightpointy, 6, 6))
 
     def apply_force(self, force: Force, distance_from_com: int, color=WHITE):
         draw_vector(
@@ -283,7 +284,70 @@ class line:
         pygame.draw.rect(display, RED, (d, D_HEIGHT - line1.eq(d), 3, 3))
         if (min(line1.leftpointx, line1.rightpointx) < d < max(line1.rightpointx, line1.leftpointx)):
             if (min(line2.leftpointx, line2.rightpointx) < d < max(line2.rightpointx, line2.leftpointx)):
-                return True
+                return (d, line1.eq(d))
+        return False
+
+    @staticmethod
+    def docollision(line1, line2, abs_collision_point_x, abs_collision_point_y):
+        e = 1
+
+        dx = abs_collision_point_x - line1.center_mass.x
+        dy = abs_collision_point_y - line1.center_mass.y
+        d_center = sqrt(dx ** 2 + dy ** 2)
+
+        line1_rightside_up = None
+        if 0 < deg(norm(line1.angle)) < 180:
+            line1_rightside_up = True
+        elif 180 < deg(norm(line1.angle)) < 360:
+            line1_rightside_up = False
+        else:
+            raise InTheMiddleException
+
+        line1_collision_side = None
+
+        if dx > 0 and dy > 0:
+            # quadrant 1
+            if line1_rightside_up:
+                line1_collision_side = 右
+            else:
+                line1_collision_side = 左
+        elif dx > 0 and dy < 0:
+            # the collision point is in quadrant 4 w/r/t line1 axle
+            if line1_rightside_up:
+                line1_collision_side = 左
+            else:
+                line1_collision_side = 右
+        elif dx < 0 and dy < 0:
+            # quadrant 3
+            if line1_rightside_up:
+                line1_collision_side = 左
+            else:
+                line1_collision_side = 右
+        elif dx < 0 and dy > 0:
+            # quadrant 2
+            if line1_rightside_up:
+                line1_collision_side = 右
+            else:
+                line1_collision_side = 左
+
+        if line1_collision_side == 右:
+            d_center = d_center
+        elif line1_collision_side == 左:
+            d_center = -d_center
+        else:
+            raise InTheMiddleException
+
+        draw_text('RIGHT' if line1_collision_side == 右 else 'LEFT', 1, 100)
+        print(str(line1_collision_side))
+        if line1_collision_side is None:
+            raise
+
+        '''
+        line1.center_mass.velocity + line1_collision_point_rot_velocity
+        j = -(1 + e)*vr*n/()
+        '''
+
+        return None
 
     @property
     def leftpointx(self):
