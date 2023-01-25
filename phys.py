@@ -4,9 +4,6 @@ import utils
 from utils import *
 import pygame
 
-from sympy import Eq, solve
-from sympy.abc import x, y
-
 
 class Vector:  # as in physics, not c++ type of vector
     def __init__(self, magnitude, direction):
@@ -16,6 +13,16 @@ class Vector:  # as in physics, not c++ type of vector
 
     def __repr__(self):
         raise NotImplementedError
+
+    def __add__(self, b):
+        try:
+            assert type(self) != Vector
+            assert type(b) != Vector
+        except AssertionError:
+            raise TypeError("Do not add raw vectors as it's meaningless")
+
+        assert type(self) == type(b)
+        # return get_net_vector(
 
 
 class Velocity(Vector):
@@ -276,11 +283,6 @@ class line:
         c = b / a
         d = -1 * c
 
-        '''
-        sol = solve([Eq(line1.slope*x - y, -line1.intercept),
-                     Eq(line2.slope*x - y, -line2.intercept)])
-        pygame.draw.rect(display, RED, (sol[x], D_HEIGHT - sol[y], 3, 3))
-        '''
         pygame.draw.rect(display, RED, (d, D_HEIGHT - line1.eq(d), 3, 3))
         if (min(line1.leftpointx, line1.rightpointx) < d < max(line1.rightpointx, line1.leftpointx)):
             if (min(line2.leftpointx, line2.rightpointx) < d < max(line2.rightpointx, line2.leftpointx)):
@@ -291,56 +293,13 @@ class line:
     def docollision(line1, line2, abs_collision_point_x, abs_collision_point_y):
         e = 1
 
-        dx = abs_collision_point_x - line1.center_mass.x
-        dy = abs_collision_point_y - line1.center_mass.y
-        d_center = sqrt(dx ** 2 + dy ** 2)
+        line1_collision_point_velocity = line.get_velocity_of_collision_point(line1, abs_collision_point_x, abs_collision_point_y)
+        draw_vector(line1_collision_point_velocity, abs_collision_point_x, abs_collision_point_y, GREEN)
 
-        line1_rightside_up = None
-        if 0 < deg(norm(line1.angle)) < 180:
-            line1_rightside_up = True
-        elif 180 < deg(norm(line1.angle)) < 360:
-            line1_rightside_up = False
-        else:
-            raise InTheMiddleException
+        line2_collision_point_velocity = line.get_velocity_of_collision_point(line2, abs_collision_point_x, abs_collision_point_y)
+        draw_vector(line2_collision_point_velocity, abs_collision_point_x, abs_collision_point_y, YELLOW)
 
-        line1_collision_side = None
 
-        if dx > 0 and dy > 0:
-            # quadrant 1
-            if line1_rightside_up:
-                line1_collision_side = 右
-            else:
-                line1_collision_side = 左
-        elif dx > 0 and dy < 0:
-            # the collision point is in quadrant 4 w/r/t line1 axle
-            if line1_rightside_up:
-                line1_collision_side = 左
-            else:
-                line1_collision_side = 右
-        elif dx < 0 and dy < 0:
-            # quadrant 3
-            if line1_rightside_up:
-                line1_collision_side = 左
-            else:
-                line1_collision_side = 右
-        elif dx < 0 and dy > 0:
-            # quadrant 2
-            if line1_rightside_up:
-                line1_collision_side = 右
-            else:
-                line1_collision_side = 左
-
-        if line1_collision_side == 右:
-            d_center = d_center
-        elif line1_collision_side == 左:
-            d_center = -d_center
-        else:
-            raise InTheMiddleException
-
-        draw_text('RIGHT' if line1_collision_side == 右 else 'LEFT', 1, 100)
-        print(str(line1_collision_side))
-        if line1_collision_side is None:
-            raise
 
         '''
         line1.center_mass.velocity + line1_collision_point_rot_velocity
@@ -348,6 +307,72 @@ class line:
         '''
 
         return None
+
+    @staticmethod
+    def get_velocity_of_collision_point(line, abs_collision_point_x, abs_collision_point_y):
+        dx = abs_collision_point_x - line.center_mass.x
+        dy = abs_collision_point_y - line.center_mass.y
+        d_center = sqrt(dx ** 2 + dy ** 2)
+
+        line_rightside_up = None
+        if 0 <= deg(norm(line.angle)) <= 180:
+            line_rightside_up = True
+        elif 180 < deg(norm(line.angle)) < 360:
+            line_rightside_up = False
+        else:
+            raise InTheMiddleException
+
+        line_collision_side = None
+
+        if dx > 0 and dy >= 0:
+            # quadrant 1
+            if line_rightside_up:
+                line_collision_side = 右
+            else:
+                line_collision_side = 左
+        elif dx > 0 and dy <= 0:
+            # the collision point is in quadrant 4 w/r/t line1 axle
+            if line_rightside_up:
+                line_collision_side = 左
+            else:
+                line_collision_side = 右
+        elif dx < 0 and dy <= 0:
+            # quadrant 3
+            if line_rightside_up:
+                line_collision_side = 左
+            else:
+                line_collision_side = 右
+        elif dx < 0 and dy >= 0:
+            # quadrant 2
+            if line_rightside_up:
+                line_collision_side = 右
+            else:
+                line_collision_side = 左
+
+        if line_collision_side == 右:
+            d_center = d_center
+        elif line_collision_side == 左:
+            d_center = -d_center
+        else:
+            raise InTheMiddleException
+
+        line_collision_point_rot_velocity_mag = abs(d_center) * line.angular_velocity
+        line_collision_point_rot_velocity_direction = None
+        if line_collision_side == 右:
+            if line.spinning_anticlockwise:
+                line_collision_point_rot_velocity_direction = line.angle + rad(90)
+            elif line.spinning_clockwise:
+                line_collision_point_rot_velocity_direction = line.angle + rad(270)
+        elif line_collision_side == 左:
+            if line.spinning_anticlockwise:
+                line_collision_point_rot_velocity_direction = line.angle + rad(270)
+            elif line.spinning_clockwise:
+                line_collision_point_rot_velocity_direction = line.angle + rad(90)
+
+        line_collision_point_abs_velocity_from_rot = Velocity(line_collision_point_rot_velocity_mag, line_collision_point_rot_velocity_direction)
+
+        line_collision_point_velocity = get_net_vector(line.center_mass.velocity, line_collision_point_abs_velocity_from_rot)
+        return line_collision_point_velocity
 
     @property
     def leftpointx(self):
@@ -357,6 +382,19 @@ class line:
     def rightpointx(self):
         return self.center_mass.x + cos(self.angle) * (self.total_length/2)
 
+    @property
+    def spinning_anticlockwise(self):
+        if self.angular_velocity >= 0:
+            return True
+        return False
+
+    @property
+    def spinning_clockwise(self):
+        if self.angular_velocity < 0:
+            return True
+        return False
+    
+    
 class skateboardline:
     LEFT = 'LEFT'
     CENT = 'CENT'
