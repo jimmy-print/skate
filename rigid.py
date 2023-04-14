@@ -19,7 +19,7 @@ def main():
 
 
     j_com = point_mass(x=D_WIDTH - 300, y=250, mass=20)
-    j = line(j_com, 300)
+    j = line(j_com, 300, PINK)
     j.apply_force(Force(newtons=40, direction=rad(170)), distance_from_com=0, color=WHITE)
 
 
@@ -41,8 +41,7 @@ def main():
 
         pygame.draw.rect(display, BLUE, (0, D_HEIGHT - 1, D_WIDTH, 1))
 
-    
-
+        
         l.tick()
         j.tick()
 
@@ -54,6 +53,7 @@ def main():
         l.draw()
         j.draw()
 
+        
         if 0 < deg(norm(l.angle)) < 180:
             utils.draw_text("right side up", 1, 1)
         elif 180 < deg(norm(l.angle)) < 360:
@@ -63,12 +63,11 @@ def main():
 
         collide_result = line.collide(l, j)
         # NOTE: when l is vertical, line.collide returns false
+        # prob due to infinite slope breaking something
         if collide_result:
             abs_collision_point_x, abs_collision_point_y = collide_result
             line.docollision(l, j, abs_collision_point_x, abs_collision_point_y)
 
-
-    
         pygame.display.update()
         clock.tick(fps)
 

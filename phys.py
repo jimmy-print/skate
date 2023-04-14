@@ -19,10 +19,26 @@ class Vector:  # as in physics, not c++ type of vector
             assert type(self) != Vector
             assert type(b) != Vector
         except AssertionError:
-            raise TypeError("Do not add raw vectors as it's meaningless")
+            raise TypeError("Do not add/subtract raw vectors as it's meaningless")
 
-        assert type(self) == type(b)
-        # return get_net_vector(
+        try:
+            assert type(self) == type(b)
+        except AssertionError:
+            raise TypeError(f"adding/subtracting two different types of vectors, {type(self)} and {type(b)}")
+
+        return get_net_vector(self, b)
+
+    def __neg__(self):
+        try:
+            assert type(self) != Vector
+        except AssertionError:
+            raise TypeError("Do not make negative a raw vector as it's meaningless")
+
+        negative = type(self)(self.magnitude, norm(self.direction + rad(180)))
+        return negative
+
+    def __sub__(self, b):
+        return self + -b
 
 
 class Velocity(Vector):
@@ -39,7 +55,7 @@ class Velocity(Vector):
 
 
 class Force(Vector):
-    def __init__(self, newtons, direction, name='placeholder_force_name'):
+    def __init__(self, newtons, direction, name='force'):
         super().__init__(newtons, direction)
         self.name = name
 
@@ -221,7 +237,7 @@ class point_mass_on_line(point_mass):
 
 
 class line:
-    def __init__(self, center_mass: point_mass, total_length: int):
+    def __init__(self, center_mass: point_mass, total_length: int, color=WHITE):
         self.total_length = total_length
         self.center_mass = center_mass
 
@@ -234,13 +250,15 @@ class line:
 
         self.eq = None
 
+        self.color = color
+
     def draw(self):
         leftpointx = self.center_mass.x - cos(self.angle) * (self.total_length/2)
         leftpointy = self.center_mass.y - sin(self.angle) * (self.total_length/2)
 
         rightpointx = self.center_mass.x + cos(self.angle) * (self.total_length/2)
         rightpointy = self.center_mass.y + sin(self.angle) * (self.total_length/2)
-        pygame.draw.line(display, WHITE, (leftpointx, D_HEIGHT - leftpointy), (rightpointx, D_HEIGHT - rightpointy))
+        pygame.draw.line(display, self.color, (leftpointx, D_HEIGHT - leftpointy), (rightpointx, D_HEIGHT - rightpointy))
 
         pygame.draw.rect(display, GREEN, (self.center_mass.x, D_HEIGHT - self.center_mass.y, 4, 4))
         pygame.draw.rect(display, RED, (rightpointx, D_HEIGHT - rightpointy, 6, 6))
@@ -299,14 +317,34 @@ class line:
         line2_collision_point_velocity = line.get_velocity_of_collision_point(line2, abs_collision_point_x, abs_collision_point_y)
         draw_vector(line2_collision_point_velocity, abs_collision_point_x, abs_collision_point_y, YELLOW)
 
+        vr = line2_collision_point_velocity - line1_collision_point_velocity
 
-
+        line_touching_tip = line.whose_line_touches_tip(line1, line2, abs_collision_point_x, abs_collision_point_y)
+        n = Vector(1, norm(line_touching_tip + rad())
+        
         '''
         line1.center_mass.velocity + line1_collision_point_rot_velocity
         j = -(1 + e)*vr*n/()
         '''
 
         return None
+
+    @staticmethod
+    def whose_line_touches_tip(line1, line2, abs_collision_point_x, abs_collision_point_y):
+        d1x = abs_collision_point_x - line1.center_mass.x
+        d1y = abs_collision_point_y - line1.center_mass.y
+        d1_center = sqrt(d1x ** 2 + d1y ** 2)
+
+        d2x = abs_collision_point_x - line2.center_mass.x
+        d2y = abs_collision_point_y - line2.center_mass.y
+        d2_center = sqrt(d2x ** 2 + d2y ** 2)
+
+        d1_edge = line1.total_length/2 - d1_center
+        d2_edge = line2.total_length/2 - d2_center
+
+        if d1_edge >= d2_edge:
+            return line1
+        return line2
 
     @staticmethod
     def get_velocity_of_collision_point(line, abs_collision_point_x, abs_collision_point_y):
