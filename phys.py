@@ -320,7 +320,7 @@ class line:
         vr = line2_collision_point_velocity - line1_collision_point_velocity
 
         line_touching_tip = line.whose_line_touches_tip(line1, line2, abs_collision_point_x, abs_collision_point_y)
-        n = Vector(1, norm(line_touching_tip + rad())
+        n = Vector(1, norm(line_touching_tip + rad()))
         
         '''
         line1.center_mass.velocity + line1_collision_point_rot_velocity

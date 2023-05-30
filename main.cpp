@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <numeric>
 #include <map>
+#include <exception>
 
 #include <stdio.h>
 #include <math.h>
@@ -25,6 +26,8 @@ const std::string RIGH = "RIGH";
 
 const std::string LEFTWHEEL = "LEFTWHEEL";
 const std::string RIGHTWHEEL = "RIGHTWHEEL";
+
+bool apple = false;
 
 
 std::vector<struct aes_wector> wectors_aess;
@@ -60,7 +63,6 @@ void print_array(std::vector<float> v)
 template <typename T>
 struct aes_wector calc_wector_data_struct(T wector, float x, float y, color color, float display_multiply_factor);
 
-void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp);
 
 
 color BLACK = {0, 0, 0};
@@ -72,6 +74,10 @@ color BLUE = {0, 0, 1};
 color rgb_py_to_gl(float r, float g, float b) {
 	return (color) {r / 255, g / 255, b / 255};
 }
+
+color SHIT_COLOR = rgb_py_to_gl(122, 86, 2);
+void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp, color mac_quad_color = SHIT_COLOR);
+
 color DARKGREY = rgb_py_to_gl(25, 25, 25);
 color KINDA_DARK_GREY = rgb_py_to_gl(40, 40, 40);
 color CYAN = rgb_py_to_gl(0, 255, 255);
@@ -553,6 +559,7 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	apple = true;
 #endif
 	GLFWwindow *window = glfwCreateWindow(D_WIDTH, D_HEIGHT, "skate", 0, 0);
 	glfwMakeContextCurrent(window);
@@ -563,7 +570,7 @@ int main() {
 
 	glfwSetKeyCallback(window, key_callback);
 
-	std::map<char, glyph> glyphs = init_glyphs("inconsolata.ttf");
+	std::map<char, glyph> glyphs = init_glyphs("LiberationMono-Regular.ttf");
 	configure_blending();
 	GLuint text_VAO, text_VBO;
 	get_vao_vbo(&text_VAO, &text_VBO);
@@ -609,7 +616,7 @@ int main() {
 
 	GLuint poly_VAO, poly_VBO;
 	glGenVertexArrays(1, &poly_VAO);
-	glGenVertexArrays(1, &poly_VBO);
+	glGenBuffers(1, &poly_VBO);
 	GLuint poly_shader = load_shader("poly_vs", "poly_fs");
 	GLuint poly_mvp_l = glGetUniformLocation(poly_shader, "mvp");
 	glPointSize(5);
@@ -653,7 +660,7 @@ int main() {
 				0, 0, EXP_COLOR(KINDA_DARK_GREY),
 				D_WIDTH, 0, EXP_COLOR(KINDA_DARK_GREY),
 				D_WIDTH, 0 + (D_HEIGHT - stage_height), EXP_COLOR(KINDA_DARK_GREY)
-			}, GL_QUADS, 4, poly_mvp_l, mvp_m);
+			}, GL_QUADS, 4, poly_mvp_l, mvp_m, KINDA_DARK_GREY);
 
 		/*
 		  int state = glfwGetKey(window, GLFW_KEY_D);
@@ -913,7 +920,7 @@ int main() {
 		draw_poly(poly_shader, poly_VAO, poly_VBO, {stage_width, 0, EXP_COLOR(DARKGREY),
 							    stage_width, D_HEIGHT, EXP_COLOR(DARKGREY),
 							    stage_width + (D_WIDTH - stage_width), D_HEIGHT, EXP_COLOR(DARKGREY),
-							    stage_width + (D_WIDTH - stage_width), 0, EXP_COLOR(DARKGREY)}, GL_QUADS, 4, poly_mvp_l, mvp_m);
+							    stage_width + (D_WIDTH - stage_width), 0, EXP_COLOR(DARKGREY)}, GL_QUADS, 4, poly_mvp_l, mvp_m, DARKGREY);
 
 
 		std::vector<float> wectors_dat;
@@ -936,11 +943,11 @@ int main() {
 		glUseProgram(wectors_s);
 		glBindVertexArray(wectors_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, wectors_vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * wectors_dat.size(), &wectors_dat[0], GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) 0);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (2 * sizeof(float)));
 		glEnableVertexAttribArray(1);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * wectors_dat.size(), &wectors_dat[0], GL_STATIC_DRAW);
 		glDrawArrays(GL_LINES, 0, wectors_aess.size() * 2);
 		glUniformMatrix4fv(wectors_mvp_l, 1, GL_FALSE, &mvp_m[0][0]);
 
@@ -1043,8 +1050,118 @@ std::string get_file_str(std::string file)
 	return s;
 }
 
-void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLuint primitive, int indices, GLuint mvp_l, glm::mat4 mvp)
+void draw_poly(
+	GLuint shader, GLuint VAO, GLuint VBO,
+	std::vector<float> vs, GLuint primitive, int indices, 
+	GLuint mvp_l, glm::mat4 mvp,
+	color mac_quad_color)
+	// mac_quad_color defaults to SHIT_COLOR (see draw_poly function declaration.)
+	/*
+	 * the problem is that GL_QUADS is not supported on MacOS. So, I wrote code
+	 * to automatically use GL_TRIANGLES instead. The code shifts the quad vertices
+	 * to become triangle vertices (1 quad = 2 triangles with their hypotenuses touching.)
+	 * However, I couldn't preserve the color data of each vertex in this shift, since everything's
+	 * in one giant unstructured array.
+	 * 	So, I decide to make an additional parameter for the color of the shape, to be used when
+	 * it's a quad and it's on macos. But since most of the time these two conditions are not
+	 * both true, it's an optional argument. The code will ALWAYS have already specified the vertex 
+	 * color in the vs array, but only when it's a quad and it's on macos will that information be
+	 * lost during the shift to GL_TRIANGLE.
+	 * 	The default color is SHIT_COLOR to remind one that they have to specify the color.
+	 */
 {
+	if (apple && primitive == GL_QUADS) {
+		// we're gonna turn the quad vertices into triangle vertices.
+		// assuming the quad is a rectangle, and its bottom side is parallel to the ground.
+		
+		/* vector<float> vs is in the form of {
+			px, py, 1.0, 1.0, 1.0, 1.0,
+			px, py, 1.0, 1.0, 1.0, 1.0,
+			px, py, 1.0, 1.0, 1.0, 1.0,
+			px, py, 1.0, 1.0, 1.0, 1.0,
+		}
+		*/
+		assert(vs.size() == 24); // as according to above layout spec.
+		std::vector<float> p1 = {vs[0], vs[1]};
+		std::vector<float> p2 = {vs[6], vs[7]};
+		std::vector<float> p3 = {vs[12], vs[13]};
+		std::vector<float> p4 = {vs[18], vs[19]};
+
+		float smaller_x, bigger_x;
+		float smaller_y, bigger_y;
+
+		{
+			std::vector<float> all_xs = {p1[0], p2[0], p3[0], p4[0]};
+			// now, find the smaller x value and the bigger x value. each should have one duplicate.
+			float init = all_xs[0];
+			float other;
+			all_xs.erase(all_xs.begin());
+			for (int i = 0; i < all_xs.size(); i++) {
+				if (all_xs[i] == init) {
+					all_xs.erase(all_xs.begin() + i);
+				}
+			}
+			// here, if the resulting array has two elements that are the same, we can be sure
+			// that they're the other value (smaller or bigger, not sure yet.)
+			if ((all_xs.size() == 2) && (all_xs[0] == all_xs[1])) {
+				other = all_xs[0];
+			} else {
+				throw std::invalid_argument(
+					"the x values of your quad are not valid. "
+					"your quad needs to have 4 x values, "
+					"where there are 2 unique values, each repeated twice.");
+			}
+
+			if (init <= other) {
+				smaller_x = init;
+				bigger_x = other;
+			} else {
+				smaller_x = other;
+				bigger_x = init;
+			}
+		}
+
+		{ // this block is the same as the above block, just for y. consider some type of function?
+			std::vector<float> all_ys = {p1[1], p2[1], p3[1], p4[1]};
+			float init = all_ys[0];
+			float other;
+			all_ys.erase(all_ys.begin());
+			for (int i = 0; i < all_ys.size(); i++) {
+				if (all_ys[i] == init) {
+					all_ys.erase(all_ys.begin() + i);
+				}
+			}
+			if ((all_ys.size() == 2) && (all_ys[0] == all_ys[1])) {
+				other = all_ys[0];
+			} else {
+				throw std::invalid_argument(
+					"the y values of your quad are not valid. "
+					"your quad needs to have 4 y values, "
+					"where there are 2 unique values, each repeated twice.");
+			}
+
+			if (init <= other) {
+				smaller_y = init;
+				bigger_y = other;
+			} else {
+				smaller_y = other;
+				bigger_y = init;
+			}
+		}
+
+		vs = {
+			smaller_x, smaller_y, EXP_COLOR(mac_quad_color),
+			bigger_x, smaller_y, EXP_COLOR(mac_quad_color),
+			smaller_x, bigger_y, EXP_COLOR(mac_quad_color),
+
+			bigger_x, smaller_y, EXP_COLOR(mac_quad_color),
+			bigger_x, bigger_y, EXP_COLOR(mac_quad_color),
+			smaller_x, bigger_y, EXP_COLOR(mac_quad_color),
+		};
+		indices = 6;
+		primitive = GL_TRIANGLES;
+	}
+
 	glUseProgram(shader);
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -1055,4 +1172,7 @@ void draw_poly(GLuint shader, GLuint VAO, GLuint VBO, std::vector<float> vs, GLu
 	glEnableVertexAttribArray(1);
 	glDrawArrays(primitive, 0, indices);
 	glUniformMatrix4fv(mvp_l, 1, GL_FALSE, &mvp[0][0]);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
