@@ -138,5 +138,5 @@ void draw_text(
 		x += (g.advance_x >> 6) * scale;
 	}
 
-	glUniformMatrix4fv(text_shader, 1, GL_FALSE, &mvp[0][0]);
+	glUniformMatrix4fv(mvp_l, 1, GL_FALSE, &mvp[0][0]);
 }
